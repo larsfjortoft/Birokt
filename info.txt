@@ -1,0 +1,167 @@
+================================================================================
+  BIRØKT - Digital bigårdsforvaltning  |  v1.0  |  2026
+================================================================================
+
+BESKRIVELSE
+-----------
+Birøkt er et digitalt forvaltningssystem for birøktere. Systemet lar deg
+registrere og følge opp bigårder, bikuber, dronninger, inspeksjoner,
+behandlinger, fôringer og honningproduksjon. Det inkluderer statistikk,
+rapporter (PDF), værmeldinger og push-varsler til mobilen.
+
+Systemet består av tre komponenter:
+  1. Backend API      – serversiden, håndterer all data og logikk
+  2. Webgrensesnitt   – nettleserbasert administrasjonspanel
+  3. Mobilapp         – iOS/Android-app bygget med Expo/React Native
+
+
+TEKNOLOGI
+---------
+  Backend:    Node.js / Express / Prisma ORM / SQLite (dev)
+  Web:        Next.js / React / Tailwind CSS
+  Mobil:      Expo (React Native) / EAS Build
+  Språk:      TypeScript (alle komponenter)
+  Auth:       JWT med access- og refresh-tokens
+
+
+MAPPESTRUKTUR
+-------------
+  F:\My AI\Projects\Birøkt\
+    backend\        – Express API-server
+    frontend-web\   – Next.js webapplikasjon
+    mobile\         – Expo mobilapp
+
+
+================================================================================
+  PRODUKSJONSSERVER (lokal maskin)
+================================================================================
+
+Applikasjonen kjøres som bakgrunnstjenester via PM2 og starter automatisk
+ved Windows-oppstart.
+
+ADRESSER
+--------
+  Backend API:    http://localhost:3000
+  API-endepunkt:  http://localhost:3000/api/v1
+  Webgrensesnitt: http://localhost:3001
+
+  Fra andre enheter på samme nettverk:
+  Webgrensesnitt: http://[maskinens-IP]:3001
+  Backend API:    http://[maskinens-IP]:3000
+
+  (Finn maskinens IP med:  ipconfig  i kommandolinjen)
+
+
+PM2 – PROSESSBEHANDLER
+-----------------------
+PM2 holder tjenestene kjørende og starter dem automatisk etter omstart.
+
+  Vanlige kommandoer (kjøres i terminal):
+
+    pm2 list              – Vis status for alle tjenester
+    pm2 logs              – Vis alle logger (live)
+    pm2 logs birokt-backend   – Logger kun for backend
+    pm2 logs birokt-web       – Logger kun for web
+    pm2 restart all       – Restart alle tjenester
+    pm2 restart birokt-backend  – Restart kun backend
+    pm2 stop all          – Stopp alle tjenester
+    pm2 start all         – Start alle tjenester
+
+
+MANUELL OPPSTART (hvis PM2 ikke kjører)
+----------------------------------------
+  Backend:
+    cd "F:\My AI\Projects\Birøkt\backend"
+    node dist/index.js
+
+  Web:
+    cd "F:\My AI\Projects\Birøkt\frontend-web"
+    node node_modules/next/dist/bin/next start --port 3001
+
+
+OPPDATERE ETTER KODEENDRINGER
+------------------------------
+  Backend:
+    cd "F:\My AI\Projects\Birøkt\backend"
+    npm run build
+    pm2 restart birokt-backend
+
+  Web:
+    cd "F:\My AI\Projects\Birøkt\frontend-web"
+    npm run build
+    pm2 restart birokt-web
+
+
+================================================================================
+  MOBILAPP
+================================================================================
+
+Mobilappen bygges og distribueres via Expo Application Services (EAS).
+Den er IKKE en lokal tjeneste – den installeres som en app på telefonen.
+
+Byggemiljøer:
+  development  – For utvikling med Expo Go
+  preview      – Intern testversjon (.apk for Android)
+  production   – Versjon for App Store / Google Play
+
+For å bygge:
+  cd "F:\My AI\Projects\Birøkt\mobile"
+  eas login                              – Logg inn på Expo-konto
+  eas build --profile production --platform all   – Bygg for iOS + Android
+
+API-adresse i produksjonsappen: https://api.birokt.no/api/v1
+(Denne må peke på en offentlig server for at mobilappen skal fungere
+ utenfor lokalt nettverk. Se avsnittet om ekstern tilgang nedenfor.)
+
+
+================================================================================
+  EKSTERN TILGANG (utenfor hjemmenettverket)
+================================================================================
+
+For å nå webgrensesnittet og APIet utenfor hjemmet finnes det to alternativer:
+
+Alternativ 1 – Tailscale (anbefalt, enkelt og gratis):
+  - Last ned Tailscale: https://tailscale.com
+  - Installer på denne maskinen og på enheten du vil koble fra
+  - Du får en fast privat IP-adresse uansett hvor du er
+  - Ingen port-forwarding eller brannmurregler nødvendig
+
+Alternativ 2 – Port-forwarding i router:
+  - Åpne port 3000 (API) og 3001 (web) i ruteren din
+  - Pek dem til denne maskinens lokale IP
+  - Bruk et dynamisk DNS-tjeneste (f.eks. No-IP) for fast adresse
+  - Krever mer konfigurasjon og er mindre sikkert enn Tailscale
+
+
+================================================================================
+  DATABASE
+================================================================================
+
+  Type:     SQLite (fil-basert, ingen separat databaseserver nødvendig)
+  Plassering: F:\My AI\Projects\Birøkt\backend\prisma\dev.db
+
+  Sikkerhetskopiering:
+    Ta kopi av dev.db-filen regelmessig for å sikre dataene.
+
+  Databaseverktøy (visuell editor):
+    cd "F:\My AI\Projects\Birøkt\backend"
+    npx prisma studio
+    Åpner i nettleser på http://localhost:5555
+
+
+================================================================================
+  KONFIGURASJON
+================================================================================
+
+  Backend miljøvariabler:   F:\My AI\Projects\Birøkt\backend\.env
+  Web miljøvariabler:       F:\My AI\Projects\Birøkt\frontend-web\.env.local
+  Mobil EAS-konfigurasjon:  F:\My AI\Projects\Birøkt\mobile\eas.json
+
+  Viktige innstillinger i backend\.env:
+    PORT=3000
+    JWT_SECRET=...         (endre denne til noe unikt i produksjon!)
+    DATABASE_URL=...
+    CORS_ORIGINS=...
+
+
+================================================================================

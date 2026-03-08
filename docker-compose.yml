@@ -1,0 +1,158 @@
+version: '3.9'
+
+services:
+  # PostgreSQL Database (optional - use for production-like setup)
+  postgres:
+    image: postgres:15-alpine
+    container_name: birokt-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: birokt
+      POSTGRES_USER: birokt
+      POSTGRES_PASSWORD: birokt_dev_password
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U birokt"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - birokt-network
+    profiles:
+      - postgres
+
+  # MinIO (S3-compatible storage for local development)
+  minio:
+    image: minio/minio:latest
+    container_name: birokt-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"  # API port
+      - "9001:9001"  # Console port
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - birokt-network
+    profiles:
+      - storage
+
+  # Redis (optional - for caching and background jobs)
+  redis:
+    image: redis:7-alpine
+    container_name: birokt-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - birokt-network
+    profiles:
+      - redis
+
+  # API Server (Node.js backend)
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: birokt-api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+
+      # Database (SQLite by default)
+      DATABASE_URL: "file:./dev.db"
+
+      # For PostgreSQL (uncomment if using postgres profile):
+      # DATABASE_URL: postgresql://birokt:birokt_dev_password@postgres:5432/birokt
+
+      # JWT
+      JWT_SECRET: dev_secret_key_change_in_production
+      JWT_ACCESS_EXPIRY: 1h
+      JWT_REFRESH_EXPIRY: 30d
+
+      # File Storage (local)
+      CDN_URL: http://localhost:3000/uploads
+
+      # CORS
+      CORS_ORIGINS: http://localhost:3001,http://localhost:19006
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./backend/src:/app/src  # Hot reload
+      - ./backend/prisma:/app/prisma
+      - ./backend/uploads:/app/uploads
+      - /app/node_modules  # Don't override node_modules
+    networks:
+      - birokt-network
+
+  # Web Frontend (Next.js)
+  web:
+    build:
+      context: ./frontend-web
+      dockerfile: Dockerfile.dev
+    container_name: birokt-web
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3000/api/v1
+      NEXT_PUBLIC_CDN_URL: http://localhost:3000/uploads
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./frontend-web:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - api
+    networks:
+      - birokt-network
+    profiles:
+      - web
+
+  # Adminer (Database management UI)
+  adminer:
+    image: adminer:latest
+    container_name: birokt-adminer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+    depends_on:
+      - postgres
+    networks:
+      - birokt-network
+    profiles:
+      - postgres
+
+networks:
+  birokt-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  minio_data:
+    driver: local
+  redis_data:
+    driver: local

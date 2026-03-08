@@ -1,0 +1,929 @@
+openapi: 3.0.3
+info:
+  title: Birøkt API
+  description: |
+    RESTful API for birøkt-systemet (beekeeping management system).
+    
+    ## Authentication
+    All endpoints (except auth endpoints) require a Bearer token in the Authorization header.
+    
+    ## Rate Limiting
+    - Auth endpoints: 5 requests/minute per IP
+    - Read endpoints: 100 requests/minute per user
+    - Write endpoints: 30 requests/minute per user
+    
+  version: 1.0.0
+  contact:
+    name: Birøkt Support
+    email: support@birokt.no
+  license:
+    name: Proprietary
+
+servers:
+  - url: https://api.birokt.no/api/v1
+    description: Production server
+  - url: http://localhost:3000/api/v1
+    description: Development server
+
+tags:
+  - name: Authentication
+    description: User authentication and authorization
+  - name: Apiaries
+    description: Bigård (apiary) management
+  - name: Hives
+    description: Kube (hive) management
+  - name: Inspections
+    description: Inspeksjon (inspection) management
+  - name: Photos
+    description: Photo/image management
+  - name: Treatments
+    description: Behandling (treatment) management
+  - name: Feedings
+    description: Fôring (feeding) management
+  - name: Production
+    description: Produksjon/høsting (harvest) management
+  - name: Statistics
+    description: Statistics and analytics
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              example: VALIDATION_ERROR
+            message:
+              type: string
+              example: Invalid input data
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  field:
+                    type: string
+                  message:
+                    type: string
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+          example: 1
+        per_page:
+          type: integer
+          example: 20
+        total:
+          type: integer
+          example: 100
+        total_pages:
+          type: integer
+          example: 5
+        has_next:
+          type: boolean
+          example: true
+        has_prev:
+          type: boolean
+          example: false
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        phone:
+          type: string
+          nullable: true
+        avatar_url:
+          type: string
+          format: uri
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Apiary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        location:
+          type: object
+          properties:
+            name:
+              type: string
+            lat:
+              type: number
+              format: float
+            lng:
+              type: number
+              format: float
+        type:
+          type: string
+          enum: [permanent, seasonal, heather_route]
+        active:
+          type: boolean
+        hive_count:
+          type: integer
+        stats:
+          type: object
+          properties:
+            healthy:
+              type: integer
+            warning:
+              type: integer
+            critical:
+              type: integer
+        last_visit:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Hive:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        hive_number:
+          type: string
+          example: K12
+        qr_code:
+          type: string
+          nullable: true
+        apiary:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+        status:
+          type: string
+          enum: [active, nuc, inactive, dead, sold]
+        strength:
+          type: string
+          enum: [weak, medium, strong]
+          nullable: true
+        hive_type:
+          type: string
+          enum: [langstroth, topbar, warre]
+        box_count:
+          type: integer
+        queen:
+          type: object
+          nullable: true
+          properties:
+            year:
+              type: integer
+            marked:
+              type: boolean
+            color:
+              type: string
+              enum: [white, yellow, red, green, blue]
+            race:
+              type: string
+        current_frames:
+          type: object
+          properties:
+            brood:
+              type: integer
+            honey:
+              type: integer
+        last_inspection:
+          type: object
+          nullable: true
+          properties:
+            date:
+              type: string
+              format: date-time
+            health_status:
+              type: string
+            strength:
+              type: string
+        stats:
+          type: object
+          properties:
+            total_inspections:
+              type: integer
+            total_production_kg:
+              type: number
+              format: float
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Inspection:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        hive:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            hive_number:
+              type: string
+            apiary_name:
+              type: string
+        user:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+        inspection_date:
+          type: string
+          format: date-time
+        weather:
+          type: object
+          properties:
+            temperature:
+              type: number
+              format: float
+            wind_speed:
+              type: number
+              format: float
+            condition:
+              type: string
+        assessment:
+          type: object
+          properties:
+            strength:
+              type: string
+              enum: [weak, medium, strong]
+            temperament:
+              type: string
+              enum: [calm, nervous, aggressive]
+            queen_seen:
+              type: boolean
+            queen_laying:
+              type: boolean
+        frames:
+          type: object
+          properties:
+            brood:
+              type: integer
+            honey:
+              type: integer
+            pollen:
+              type: integer
+            empty:
+              type: integer
+        health:
+          type: object
+          properties:
+            status:
+              type: string
+              enum: [healthy, warning, critical]
+            varroa_level:
+              type: string
+              enum: [none, low, medium, high]
+            diseases:
+              type: array
+              items:
+                type: string
+            pests:
+              type: array
+              items:
+                type: string
+        photos:
+          type: array
+          items:
+            $ref: '#/components/schemas/Photo'
+        notes:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Photo:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        url:
+          type: string
+          format: uri
+        thumbnail_url:
+          type: string
+          format: uri
+        file_size:
+          type: integer
+        mime_type:
+          type: string
+        width:
+          type: integer
+        height:
+          type: integer
+        caption:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    Treatment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        hive_id:
+          type: string
+          format: uuid
+        treatment_date:
+          type: string
+          format: date
+        product_name:
+          type: string
+        product_type:
+          type: string
+        target:
+          type: string
+        dosage:
+          type: string
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+          nullable: true
+        withholding_period_days:
+          type: integer
+          nullable: true
+        withholding_end_date:
+          type: string
+          format: date
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+paths:
+  /auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+                - name
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 8
+                name:
+                  type: string
+                phone:
+                  type: string
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: '#/components/schemas/User'
+                      access_token:
+                        type: string
+                      refresh_token:
+                        type: string
+                      expires_in:
+                        type: integer
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Login existing user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: '#/components/schemas/User'
+                      access_token:
+                        type: string
+                      refresh_token:
+                        type: string
+                      expires_in:
+                        type: integer
+        '401':
+          description: Invalid credentials
+
+  /apiaries:
+    get:
+      tags:
+        - Apiaries
+      summary: Get all apiaries for user
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: include_inactive
+          in: query
+          schema:
+            type: boolean
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [permanent, seasonal, heather_route]
+      responses:
+        '200':
+          description: List of apiaries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Apiary'
+
+    post:
+      tags:
+        - Apiaries
+      summary: Create new apiary
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                location:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    lat:
+                      type: number
+                    lng:
+                      type: number
+                type:
+                  type: string
+                  enum: [permanent, seasonal, heather_route]
+      responses:
+        '201':
+          description: Apiary created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Apiary'
+
+  /apiaries/{id}:
+    get:
+      tags:
+        - Apiaries
+      summary: Get apiary by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Apiary details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Apiary'
+        '404':
+          description: Apiary not found
+
+  /hives:
+    get:
+      tags:
+        - Hives
+      summary: Get all hives for user
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: apiary_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, nuc, inactive, dead, sold]
+        - name: strength
+          in: query
+          schema:
+            type: string
+            enum: [weak, medium, strong]
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+      responses:
+        '200':
+          description: List of hives
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Hive'
+                  meta:
+                    type: object
+                    properties:
+                      pagination:
+                        $ref: '#/components/schemas/Pagination'
+
+    post:
+      tags:
+        - Hives
+      summary: Create new hive
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - apiary_id
+                - hive_number
+              properties:
+                apiary_id:
+                  type: string
+                  format: uuid
+                hive_number:
+                  type: string
+                hive_type:
+                  type: string
+                  enum: [langstroth, topbar, warre]
+                status:
+                  type: string
+                  enum: [active, nuc, inactive]
+                queen:
+                  type: object
+                  properties:
+                    year:
+                      type: integer
+                    marked:
+                      type: boolean
+                    color:
+                      type: string
+                    race:
+                      type: string
+      responses:
+        '201':
+          description: Hive created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Hive'
+
+  /hives/{id}:
+    get:
+      tags:
+        - Hives
+      summary: Get hive by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Hive details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Hive'
+
+  /inspections:
+    get:
+      tags:
+        - Inspections
+      summary: Get inspections
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: hive_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: start_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of inspections
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Inspection'
+
+    post:
+      tags:
+        - Inspections
+      summary: Create new inspection
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - hive_id
+                - inspection_date
+              properties:
+                hive_id:
+                  type: string
+                  format: uuid
+                inspection_date:
+                  type: string
+                  format: date-time
+                weather:
+                  type: object
+                assessment:
+                  type: object
+                frames:
+                  type: object
+                health:
+                  type: object
+                notes:
+                  type: string
+      responses:
+        '201':
+          description: Inspection created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Inspection'
+
+  /photos/upload:
+    post:
+      tags:
+        - Photos
+      summary: Upload photos
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - files
+                - hive_id
+              properties:
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                hive_id:
+                  type: string
+                  format: uuid
+                inspection_id:
+                  type: string
+                  format: uuid
+                captions:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '201':
+          description: Photos uploaded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Photo'
+
+  /stats/overview:
+    get:
+      tags:
+        - Statistics
+      summary: Get overview statistics
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: year
+          in: query
+          schema:
+            type: integer
+        - name: apiary_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Statistics overview
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      year:
+                        type: integer
+                      apiaries:
+                        type: object
+                      hives:
+                        type: object
+                      inspections:
+                        type: object
+                      production:
+                        type: object

@@ -1,0 +1,417 @@
+// Prisma schema for Birøkt - Digital beekeeping management system
+// Based on the PostgreSQL schema from Documentation/001_initial_schema.sql
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// =====================================================
+// USERS TABLE
+// =====================================================
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  name         String
+  passwordHash String   @map("password_hash")
+  phone        String?
+  avatarUrl    String?  @map("avatar_url")
+  settings     String   @default("{}") // JSON stored as string for SQLite
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  userApiaries         UserApiary[]
+  inspections          Inspection[]
+  photos               Photo[]
+  treatments           Treatment[]
+  feedings             Feeding[]
+  productions          Production[]
+  refreshTokens        RefreshToken[]
+  queens               Queen[]
+  queenHiveLogs        QueenHiveLog[]
+  pushTokens           PushToken[]
+  notificationSettings NotificationSettings?
+
+  @@map("users")
+}
+
+// =====================================================
+// REFRESH TOKENS TABLE (for JWT refresh token management)
+// =====================================================
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String   @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+// =====================================================
+// APIARIES TABLE
+// =====================================================
+model Apiary {
+  id           String   @id @default(uuid())
+  name         String
+  description  String?
+  locationName String?  @map("location_name")
+  locationLat  Float?   @map("location_lat")
+  locationLng  Float?   @map("location_lng")
+  type         String   @default("permanent") // permanent, seasonal, heather_route
+  active       Boolean  @default(true)
+  metadata     String   @default("{}") // JSON stored as string for SQLite
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  userApiaries UserApiary[]
+  hives        Hive[]
+  productions  Production[]
+
+  @@map("apiaries")
+}
+
+// =====================================================
+// USER_APIARIES (Many-to-Many)
+// =====================================================
+model UserApiary {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  apiaryId  String   @map("apiary_id")
+  role      String   @default("owner") // owner, collaborator, viewer
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  apiary Apiary @relation(fields: [apiaryId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, apiaryId])
+  @@map("user_apiaries")
+}
+
+// =====================================================
+// HIVES TABLE
+// =====================================================
+model Hive {
+  id                 String   @id @default(uuid())
+  apiaryId           String   @map("apiary_id")
+  hiveNumber         String   @map("hive_number")
+  qrCode             String?  @unique @map("qr_code")
+  status             String   @default("active") // active, nuc, inactive, dead, sold
+  strength           String?  // weak, medium, strong
+  hiveType           String   @default("langstroth") @map("hive_type") // langstroth, topbar, warre
+  boxCount           Int      @default(1) @map("box_count")
+
+  // Queen information
+  queenYear          Int?     @map("queen_year")
+  queenMarked        Boolean  @default(false) @map("queen_marked")
+  queenColor         String?  @map("queen_color") // white, yellow, red, green, blue
+  queenRace          String?  @map("queen_race") // buckfast, carnica, italian, etc
+
+  // Current stats
+  currentBroodFrames Int      @default(0) @map("current_brood_frames")
+  currentHoneyFrames Int      @default(0) @map("current_honey_frames")
+
+  notes              String?
+  metadata           String   @default("{}") // JSON stored as string for SQLite
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  apiary        Apiary         @relation(fields: [apiaryId], references: [id], onDelete: Cascade)
+  inspections   Inspection[]
+  photos        Photo[]
+  treatments    Treatment[]
+  feedings      Feeding[]
+  productions   Production[]
+  currentQueen  Queen[]        @relation("CurrentQueen")
+  queenHiveLogs QueenHiveLog[]
+
+  @@map("hives")
+}
+
+// =====================================================
+// INSPECTIONS TABLE
+// =====================================================
+model Inspection {
+  id              String   @id @default(uuid())
+  hiveId          String   @map("hive_id")
+  userId          String   @map("user_id")
+  inspectionDate  DateTime @map("inspection_date")
+
+  // Weather conditions
+  temperature      Float?
+  windSpeed        Float?   @map("wind_speed")
+  weatherCondition String?  @map("weather_condition")
+
+  // Colony assessment
+  strength     String?  // weak, medium, strong
+  temperament  String?  // calm, nervous, aggressive
+  queenSeen    Boolean  @default(false) @map("queen_seen")
+  queenLaying  Boolean  @default(false) @map("queen_laying")
+
+  // Frame counts
+  broodFrames  Int @default(0) @map("brood_frames")
+  honeyFrames  Int @default(0) @map("honey_frames")
+  pollenFrames Int @default(0) @map("pollen_frames")
+  emptyFrames  Int @default(0) @map("empty_frames")
+
+  // Health assessment
+  healthStatus String  @default("healthy") @map("health_status") // healthy, warning, critical
+  varroaLevel  String? @map("varroa_level") // none, low, medium, high
+  diseases     String  @default("[]") // JSON array stored as string
+  pests        String  @default("[]") // JSON array stored as string
+
+  notes     String?
+  metadata  String   @default("{}")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  hive    Hive               @relation(fields: [hiveId], references: [id], onDelete: Cascade)
+  user    User               @relation(fields: [userId], references: [id])
+  photos  Photo[]
+  actions InspectionAction[]
+
+  @@map("inspections")
+}
+
+// =====================================================
+// PHOTOS TABLE
+// =====================================================
+model Photo {
+  id           String   @id @default(uuid())
+  inspectionId String?  @map("inspection_id")
+  hiveId       String   @map("hive_id")
+  userId       String   @map("user_id")
+
+  filePath     String   @map("file_path")
+  url          String
+  thumbnailUrl String?  @map("thumbnail_url")
+
+  fileSize Int?    @map("file_size")
+  mimeType String? @map("mime_type")
+  width    Int?
+  height   Int?
+
+  caption String?
+  tags    String  @default("[]") // JSON array stored as string
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  inspection Inspection? @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  hive       Hive        @relation(fields: [hiveId], references: [id], onDelete: Cascade)
+  user       User        @relation(fields: [userId], references: [id])
+
+  @@map("photos")
+}
+
+// =====================================================
+// INSPECTION_ACTIONS TABLE
+// =====================================================
+model InspectionAction {
+  id           String   @id @default(uuid())
+  inspectionId String   @map("inspection_id")
+  actionType   String   @map("action_type")
+  details      String   @default("{}") // JSON stored as string
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  inspection Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+
+  @@map("inspection_actions")
+}
+
+// =====================================================
+// TREATMENTS TABLE
+// =====================================================
+model Treatment {
+  id                   String    @id @default(uuid())
+  hiveId               String    @map("hive_id")
+  userId               String    @map("user_id")
+  treatmentDate        DateTime  @map("treatment_date")
+
+  productName          String    @map("product_name")
+  productType          String?   @map("product_type")
+  target               String?
+  dosage               String?
+
+  startDate            DateTime  @map("start_date")
+  endDate              DateTime? @map("end_date")
+  withholdingPeriodDays Int?     @map("withholding_period_days")
+  withholdingEndDate   DateTime? @map("withholding_end_date")
+
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  hive Hive @relation(fields: [hiveId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("treatments")
+}
+
+// =====================================================
+// FEEDINGS TABLE
+// =====================================================
+model Feeding {
+  id                 String   @id @default(uuid())
+  hiveId             String   @map("hive_id")
+  userId             String   @map("user_id")
+  feedingDate        DateTime @map("feeding_date")
+
+  feedType           String   @map("feed_type")
+  amountKg           Float    @map("amount_kg")
+  sugarConcentration Float?   @map("sugar_concentration")
+
+  reason    String?
+  notes     String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  hive Hive @relation(fields: [hiveId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("feedings")
+}
+
+// =====================================================
+// PRODUCTION TABLE
+// =====================================================
+model Production {
+  id             String    @id @default(uuid())
+  hiveId         String?   @map("hive_id")
+  apiaryId       String?   @map("apiary_id")
+  userId         String    @map("user_id")
+  harvestDate    DateTime  @map("harvest_date")
+
+  productType    String    @map("product_type")
+  honeyType      String?   @map("honey_type")
+  amountKg       Float     @map("amount_kg")
+
+  qualityGrade    String?  @map("quality_grade")
+  moistureContent Float?   @map("moisture_content")
+
+  // Economics
+  pricePerKg   Float?    @map("price_per_kg")
+  totalRevenue Float?    @map("total_revenue")
+  soldTo       String?   @map("sold_to")
+  saleDate     DateTime? @map("sale_date")
+
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  hive   Hive?   @relation(fields: [hiveId], references: [id], onDelete: SetNull)
+  apiary Apiary? @relation(fields: [apiaryId], references: [id], onDelete: SetNull)
+  user   User    @relation(fields: [userId], references: [id])
+
+  @@map("production")
+}
+
+// =====================================================
+// QUEENS TABLE
+// =====================================================
+model Queen {
+  id                  String    @id @default(uuid())
+  queenCode           String    @map("queen_code")
+  year                Int
+  race                String?
+  color               String?
+  marked              Boolean   @default(false)
+  clipped             Boolean   @default(false)
+  origin              String    @default("own_production")
+  status              String    @default("virgin")
+  statusDate          DateTime  @default(now()) @map("status_date")
+  motherId            String?   @map("mother_id")
+  matingDate          DateTime? @map("mating_date")
+  matingStation       String?   @map("mating_station")
+  currentHiveId       String?   @map("current_hive_id")
+  introducedDate      DateTime? @map("introduced_date")
+  rating              Int?
+  temperament         String?
+  productivity        String?
+  swarmTendency       String?   @map("swarm_tendency")
+  notes               String?
+  userId              String    @map("user_id")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  mother        Queen?         @relation("QueenLineage", fields: [motherId], references: [id])
+  daughters     Queen[]        @relation("QueenLineage")
+  currentHive   Hive?          @relation("CurrentQueen", fields: [currentHiveId], references: [id])
+  user          User           @relation(fields: [userId], references: [id])
+  hiveHistory   QueenHiveLog[]
+
+  @@map("queens")
+}
+
+// =====================================================
+// PUSH TOKENS TABLE
+// =====================================================
+model PushToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  platform  String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("push_tokens")
+}
+
+// =====================================================
+// NOTIFICATION SETTINGS TABLE
+// =====================================================
+model NotificationSettings {
+  id                   String   @id @default(uuid())
+  userId               String   @unique @map("user_id")
+  inspectionReminders  Boolean  @default(true) @map("inspection_reminders")
+  treatmentReminders   Boolean  @default(true) @map("treatment_reminders")
+  weatherAlerts        Boolean  @default(true) @map("weather_alerts")
+  emailNotifications   Boolean  @default(true) @map("email_notifications")
+  quietHoursStart      String?  @map("quiet_hours_start")
+  quietHoursEnd        String?  @map("quiet_hours_end")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_settings")
+}
+
+// =====================================================
+// QUEEN_HIVE_LOGS TABLE
+// =====================================================
+model QueenHiveLog {
+  id        String   @id @default(uuid())
+  queenId   String   @map("queen_id")
+  hiveId    String   @map("hive_id")
+  action    String
+  date      DateTime
+  reason    String?
+  notes     String?
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  queen Queen @relation(fields: [queenId], references: [id], onDelete: Cascade)
+  hive  Hive  @relation(fields: [hiveId], references: [id])
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@map("queen_hive_logs")
+}

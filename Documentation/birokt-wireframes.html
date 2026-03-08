@@ -1,0 +1,1144 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Birøkt-system - Wireframes & Mockups</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        }
+        .mockup-container {
+            box-shadow: 0 20px 50px rgba(0,0,0,0.1);
+        }
+        .phone-frame {
+            width: 375px;
+            height: 812px;
+            border: 12px solid #1f2937;
+            border-radius: 40px;
+            overflow: hidden;
+            position: relative;
+        }
+        .phone-notch {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 150px;
+            height: 30px;
+            background: #1f2937;
+            border-radius: 0 0 20px 20px;
+            z-index: 10;
+        }
+        .desktop-frame {
+            width: 100%;
+            max-width: 1200px;
+            border: 8px solid #374151;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .nav-item {
+            transition: all 0.2s;
+        }
+        .nav-item:hover {
+            background: rgba(59, 130, 246, 0.1);
+        }
+        .card-hover {
+            transition: all 0.2s;
+        }
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 p-8">
+    <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <div class="mb-12 text-center">
+            <h1 class="text-4xl font-bold text-gray-900 mb-4">🐝 Birøkt-system</h1>
+            <p class="text-xl text-gray-600">Wireframes & Mockups - Web/PC og Mobil</p>
+            <div class="mt-6 flex gap-4 justify-center">
+                <button onclick="showSection('web')" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">Web/PC-versjon</button>
+                <button onclick="showSection('mobile')" class="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">Mobil-versjon</button>
+            </div>
+        </div>
+
+        <!-- WEB/PC MOCKUPS -->
+        <div id="web-section" class="space-y-16">
+            <h2 class="text-3xl font-bold text-gray-900 mb-8">Web/PC-versjon</h2>
+
+            <!-- 1. Dashboard -->
+            <div class="mockup-container bg-white rounded-lg overflow-hidden">
+                <div class="desktop-frame mx-auto">
+                    <!-- Browser chrome -->
+                    <div class="bg-gray-800 px-4 py-2 flex items-center gap-2">
+                        <div class="flex gap-2">
+                            <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                            <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                            <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                        </div>
+                        <div class="flex-1 mx-4 bg-gray-700 rounded px-3 py-1 text-xs text-gray-300">
+                            https://birokt.no/dashboard
+                        </div>
+                    </div>
+
+                    <!-- App content -->
+                    <div class="bg-gray-50 min-h-screen">
+                        <!-- Top navigation -->
+                        <nav class="bg-white border-b border-gray-200 px-6 py-4">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-8">
+                                    <div class="text-2xl font-bold text-amber-600">🐝 Birøkt</div>
+                                    <div class="flex gap-2">
+                                        <a href="#" class="nav-item px-4 py-2 rounded-lg bg-blue-50 text-blue-700 font-medium">Dashboard</a>
+                                        <a href="#" class="nav-item px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-50">Kuber</a>
+                                        <a href="#" class="nav-item px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-50">Bigårder</a>
+                                        <a href="#" class="nav-item px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-50">Produksjon</a>
+                                        <a href="#" class="nav-item px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-50">Rapporter</a>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-4">
+                                    <button class="p-2 rounded-lg hover:bg-gray-100">
+                                        <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                                        </svg>
+                                    </button>
+                                    <div class="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold">
+                                        L
+                                    </div>
+                                </div>
+                            </div>
+                        </nav>
+
+                        <!-- Dashboard content -->
+                        <div class="p-6">
+                            <!-- Stats cards -->
+                            <div class="grid grid-cols-4 gap-6 mb-6">
+                                <div class="card-hover bg-white rounded-xl p-6 border border-gray-200">
+                                    <div class="flex items-center justify-between mb-4">
+                                        <h3 class="text-gray-500 text-sm font-medium">Totalt kuber</h3>
+                                        <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                                            🏠
+                                        </div>
+                                    </div>
+                                    <div class="text-3xl font-bold text-gray-900">48</div>
+                                    <p class="text-sm text-green-600 mt-2">↑ 4 nye denne sesongen</p>
+                                </div>
+
+                                <div class="card-hover bg-white rounded-xl p-6 border border-gray-200">
+                                    <div class="flex items-center justify-between mb-4">
+                                        <h3 class="text-gray-500 text-sm font-medium">Aktive bigårder</h3>
+                                        <div class="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
+                                            📍
+                                        </div>
+                                    </div>
+                                    <div class="text-3xl font-bold text-gray-900">5</div>
+                                    <p class="text-sm text-gray-500 mt-2">3 faste, 2 lyngroute</p>
+                                </div>
+
+                                <div class="card-hover bg-white rounded-xl p-6 border border-gray-200">
+                                    <div class="flex items-center justify-between mb-4">
+                                        <h3 class="text-gray-500 text-sm font-medium">Honningproduksjon</h3>
+                                        <div class="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center">
+                                            🍯
+                                        </div>
+                                    </div>
+                                    <div class="text-3xl font-bold text-gray-900">342 kg</div>
+                                    <p class="text-sm text-green-600 mt-2">↑ 12% fra i fjor</p>
+                                </div>
+
+                                <div class="card-hover bg-white rounded-xl p-6 border border-gray-200">
+                                    <div class="flex items-center justify-between mb-4">
+                                        <h3 class="text-gray-500 text-sm font-medium">Kommende oppgaver</h3>
+                                        <div class="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center">
+                                            ⚠️
+                                        </div>
+                                    </div>
+                                    <div class="text-3xl font-bold text-gray-900">8</div>
+                                    <p class="text-sm text-red-600 mt-2">3 krever handling i dag</p>
+                                </div>
+                            </div>
+
+                            <!-- Main content grid -->
+                            <div class="grid grid-cols-3 gap-6">
+                                <!-- Recent inspections -->
+                                <div class="col-span-2 bg-white rounded-xl border border-gray-200">
+                                    <div class="p-6 border-b border-gray-200">
+                                        <h2 class="text-lg font-bold text-gray-900">Siste inspeksjoner</h2>
+                                    </div>
+                                    <div class="p-6 space-y-4">
+                                        <div class="flex items-start gap-4 p-4 rounded-lg hover:bg-gray-50 cursor-pointer">
+                                            <div class="w-12 h-12 rounded-lg bg-green-100 flex items-center justify-center font-bold text-green-700">
+                                                K12
+                                            </div>
+                                            <div class="flex-1">
+                                                <div class="flex items-center justify-between mb-1">
+                                                    <h3 class="font-semibold text-gray-900">Kube 12 - Heimebigård</h3>
+                                                    <span class="text-sm text-gray-500">I dag, 14:30</span>
+                                                </div>
+                                                <p class="text-sm text-gray-600 mb-2">Sterk koloni, dronning sett, god egglegging</p>
+                                                <div class="flex gap-2">
+                                                    <span class="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">Frisk</span>
+                                                    <span class="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">8 rammer</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="flex items-start gap-4 p-4 rounded-lg hover:bg-gray-50 cursor-pointer">
+                                            <div class="w-12 h-12 rounded-lg bg-yellow-100 flex items-center justify-center font-bold text-yellow-700">
+                                                K07
+                                            </div>
+                                            <div class="flex-1">
+                                                <div class="flex items-center justify-between mb-1">
+                                                    <h3 class="font-semibold text-gray-900">Kube 07 - Lyngbigård</h3>
+                                                    <span class="text-sm text-gray-500">I dag, 13:15</span>
+                                                </div>
+                                                <p class="text-sm text-gray-600 mb-2">Middels styrke, dronning ikke sett, men egg observert</p>
+                                                <div class="flex gap-2">
+                                                    <span class="px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded-full">Følg opp</span>
+                                                    <span class="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">6 rammer</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="flex items-start gap-4 p-4 rounded-lg hover:bg-gray-50 cursor-pointer">
+                                            <div class="w-12 h-12 rounded-lg bg-red-100 flex items-center justify-center font-bold text-red-700">
+                                                K23
+                                            </div>
+                                            <div class="flex-1">
+                                                <div class="flex items-center justify-between mb-1">
+                                                    <h3 class="font-semibold text-gray-900">Kube 23 - Heimebigård</h3>
+                                                    <span class="text-sm text-gray-500">I går, 16:45</span>
+                                                </div>
+                                                <p class="text-sm text-gray-600 mb-2">Svak koloni, mulig varroa-problem, behandling startet</p>
+                                                <div class="flex gap-2">
+                                                    <span class="px-2 py-1 bg-red-100 text-red-700 text-xs rounded-full">Krever tiltak</span>
+                                                    <span class="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full">Behandling</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Alerts & Weather -->
+                                <div class="space-y-6">
+                                    <!-- Alerts -->
+                                    <div class="bg-white rounded-xl border border-gray-200">
+                                        <div class="p-6 border-b border-gray-200">
+                                            <h2 class="text-lg font-bold text-gray-900">Varsler</h2>
+                                        </div>
+                                        <div class="p-6 space-y-4">
+                                            <div class="flex gap-3 p-3 bg-red-50 rounded-lg">
+                                                <div class="text-red-600">⚠️</div>
+                                                <div class="flex-1">
+                                                    <h4 class="font-semibold text-red-900 text-sm">Behandling påkrevd</h4>
+                                                    <p class="text-xs text-red-700 mt-1">3 kuber trenger varroabehandling</p>
+                                                </div>
+                                            </div>
+
+                                            <div class="flex gap-3 p-3 bg-yellow-50 rounded-lg">
+                                                <div class="text-yellow-600">⏰</div>
+                                                <div class="flex-1">
+                                                    <h4 class="font-semibold text-yellow-900 text-sm">Inspeksjon forfaller</h4>
+                                                    <p class="text-xs text-yellow-700 mt-1">8 kuber ikke sjekket på 2+ uker</p>
+                                                </div>
+                                            </div>
+
+                                            <div class="flex gap-3 p-3 bg-blue-50 rounded-lg">
+                                                <div class="text-blue-600">🍯</div>
+                                                <div class="flex-1">
+                                                    <h4 class="font-semibold text-blue-900 text-sm">Høstesesong</h4>
+                                                    <p class="text-xs text-blue-700 mt-1">Lynghonning klar om ~2 uker</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Weather -->
+                                    <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl text-white">
+                                        <div class="p-6">
+                                            <div class="flex items-center justify-between mb-4">
+                                                <h2 class="text-lg font-bold">Været i dag</h2>
+                                                <span class="text-4xl">☀️</span>
+                                            </div>
+                                            <div class="text-4xl font-bold mb-2">18°C</div>
+                                            <p class="text-blue-100 mb-4">Delvis skyet, laber vind</p>
+                                            <div class="flex gap-4 text-sm">
+                                                <div>
+                                                    <div class="text-blue-200">Vind</div>
+                                                    <div class="font-semibold">3 m/s</div>
+                                                </div>
+                                                <div>
+                                                    <div class="text-blue-200">Fuktighet</div>
+                                                    <div class="font-semibold">65%</div>
+                                                </div>
+                                                <div>
+                                                    <div class="text-blue-200">Nedbør</div>
+                                                    <div class="font-semibold">0 mm</div>
+                                                </div>
+                                            </div>
+                                            <div class="mt-4 pt-4 border-t border-blue-400">
+                                                <p class="text-sm text-blue-100">✅ Gode forhold for inspeksjon</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-center text-sm text-gray-500 mt-4">Dashboard - Hovedoversikt</p>
+            </div>
+
+            <!-- 2. Cube List/Management -->
+            <div class="mockup-container bg-white rounded-lg overflow-hidden">
+                <div class="desktop-frame mx-auto">
+                    <div class="bg-gray-800 px-4 py-2 flex items-center gap-2">
+                        <div class="flex gap-2">
+                            <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                            <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                            <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                        </div>
+                        <div class="flex-1 mx-4 bg-gray-700 rounded px-3 py-1 text-xs text-gray-300">
+                            https://birokt.no/kuber
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-50 min-h-screen">
+                        <nav class="bg-white border-b border-gray-200 px-6 py-4">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-8">
+                                    <div class="text-2xl font-bold text-amber-600">🐝 Birøkt</div>
+                                    <div class="flex gap-2">
+                                        <a href="#" class="nav-item px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-50">Dashboard</a>
+                                        <a href="#" class="nav-item px-4 py-2 rounded-lg bg-blue-50 text-blue-700 font-medium">Kuber</a>
+                                        <a href="#" class="nav-item px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-50">Bigårder</a>
+                                        <a href="#" class="nav-item px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-50">Produksjon</a>
+                                        <a href="#" class="nav-item px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-50">Rapporter</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </nav>
+
+                        <div class="p-6">
+                            <!-- Header & filters -->
+                            <div class="flex items-center justify-between mb-6">
+                                <div>
+                                    <h1 class="text-2xl font-bold text-gray-900 mb-2">Kuber</h1>
+                                    <p class="text-gray-600">48 kuber totalt</p>
+                                </div>
+                                <button class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2">
+                                    <span>+</span> Ny kube
+                                </button>
+                            </div>
+
+                            <!-- Filters -->
+                            <div class="flex gap-4 mb-6">
+                                <input type="text" placeholder="Søk kuber..." class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <select class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option>Alle bigårder</option>
+                                    <option>Heimebigård</option>
+                                    <option>Lyngbigård</option>
+                                    <option>Haugbigård</option>
+                                </select>
+                                <select class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option>Alle statuser</option>
+                                    <option>Aktiv</option>
+                                    <option>Avlegger</option>
+                                    <option>Inaktiv</option>
+                                </select>
+                                <select class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option>Alle styrker</option>
+                                    <option>Sterk</option>
+                                    <option>Middels</option>
+                                    <option>Svak</option>
+                                </select>
+                            </div>
+
+                            <!-- Cube grid -->
+                            <div class="grid grid-cols-4 gap-4">
+                                <!-- Strong hive -->
+                                <div class="card-hover bg-white rounded-xl border-2 border-green-200 p-5 cursor-pointer">
+                                    <div class="flex items-center justify-between mb-3">
+                                        <div class="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center font-bold text-green-700 text-lg">
+                                            K12
+                                        </div>
+                                        <span class="px-3 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">Sterk</span>
+                                    </div>
+                                    <h3 class="font-bold text-gray-900 mb-1">Kube 12</h3>
+                                    <p class="text-sm text-gray-600 mb-3">Heimebigård</p>
+                                    <div class="space-y-2 text-sm">
+                                        <div class="flex justify-between">
+                                            <span class="text-gray-500">Dronning:</span>
+                                            <span class="font-medium">2023, Merket 🔵</span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span class="text-gray-500">Sist inspisert:</span>
+                                            <span class="font-medium">I dag</span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span class="text-gray-500">Rammer:</span>
+                                            <span class="font-medium">8 av 10</span>
+                                        </div>
+                                    </div>
+                                    <div class="mt-4 pt-3 border-t border-gray-100">
+                                        <div class="flex gap-2">
+                                            <div class="w-8 h-8 bg-gray-100 rounded overflow-hidden">
+                                                <div class="w-full h-full bg-gradient-to-br from-amber-200 to-amber-400"></div>
+                                            </div>
+                                            <div class="w-8 h-8 bg-gray-100 rounded overflow-hidden">
+                                                <div class="w-full h-full bg-gradient-to-br from-green-200 to-green-400"></div>
+                                            </div>
+                                            <div class="text-xs text-gray-400 flex items-center">+3</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Medium hive with warning -->
+                                <div class="card-hover bg-white rounded-xl border-2 border-yellow-200 p-5 cursor-pointer">
+                                    <div class="flex items-center justify-between mb-3">
+                                        <div class="w-12 h-12 rounded-xl bg-yellow-100 flex items-center justify-center font-bold text-yellow-700 text-lg">
+                                            K07
+                                        </div>
+                                        <span class="px-3 py-1 bg-yellow-100 text-yellow-700 text-xs font-medium rounded-full">Middels</span>
+                                    </div>
+                                    <h3 class="font-bold text-gray-900 mb-1">Kube 07</h3>
+                                    <p class="text-sm text-gray-600 mb-3">Lyngbigård</p>
+                                    <div class="space-y-2 text-sm">
+                                        <div class="flex justify-between">
+                                            <span class="text-gray-500">Dronning:</span>
+                                            <span class="font-medium">2024, Merket 🟢</span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span class="text-gray-500">Sist inspisert:</span>
+                                            <span class="font-medium">I dag</span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span class="text-gray-500">Rammer:</span>
+                                            <span class="font-medium">6 av 10</span>
+                                        </div>
+                                    </div>
+                                    <div class="mt-4 pt-3 border-t border-gray-100">
+                                        <div class="flex items-center gap-2 text-xs text-yellow-700">
+                                            <span>⚠️</span>
+                                            <span>Følg opp dronning</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Weak hive needing treatment -->
+                                <div class="card-hover bg-white rounded-xl border-2 border-red-200 p-5 cursor-pointer">
+                                    <div class="flex items-center justify-between mb-3">
+                                        <div class="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center font-bold text-red-700 text-lg">
+                                            K23
+                                        </div>
+                                        <span class="px-3 py-1 bg-red-100 text-red-700 text-xs font-medium rounded-full">Svak</span>
+                                    </div>
+                                    <h3 class="font-bold text-gray-900 mb-1">Kube 23</h3>
+                                    <p class="text-sm text-gray-600 mb-3">Heimebigård</p>
+                                    <div class="space-y-2 text-sm">
+                                        <div class="flex justify-between">
+                                            <span class="text-gray-500">Dronning:</span>
+                                            <span class="font-medium">2022, Umerket</span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span class="text-gray-500">Sist inspisert:</span>
+                                            <span class="font-medium">I går</span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span class="text-gray-500">Rammer:</span>
+                                            <span class="font-medium">4 av 10</span>
+                                        </div>
+                                    </div>
+                                    <div class="mt-4 pt-3 border-t border-gray-100">
+                                        <div class="flex items-center gap-2 text-xs text-red-700">
+                                            <span>🔴</span>
+                                            <span>Behandling påkrevd</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Nuc/starter colony -->
+                                <div class="card-hover bg-white rounded-xl border-2 border-blue-200 p-5 cursor-pointer">
+                                    <div class="flex items-center justify-between mb-3">
+                                        <div class="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center font-bold text-blue-700 text-lg">
+                                            A04
+                                        </div>
+                                        <span class="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">Avlegger</span>
+                                    </div>
+                                    <h3 class="font-bold text-gray-900 mb-1">Avlegger 04</h3>
+                                    <p class="text-sm text-gray-600 mb-3">Haugbigård</p>
+                                    <div class="space-y-2 text-sm">
+                                        <div class="flex justify-between">
+                                            <span class="text-gray-500">Dronning:</span>
+                                            <span class="font-medium">2025, Umerket</span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span class="text-gray-500">Sist inspisert:</span>
+                                            <span class="font-medium">3 dager siden</span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span class="text-gray-500">Rammer:</span>
+                                            <span class="font-medium">5 av 5</span>
+                                        </div>
+                                    </div>
+                                    <div class="mt-4 pt-3 border-t border-gray-100">
+                                        <div class="flex items-center gap-2 text-xs text-blue-700">
+                                            <span>📈</span>
+                                            <span>Vokser godt</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Additional cubes (simplified) -->
+                                <div class="card-hover bg-white rounded-xl border border-gray-200 p-5 cursor-pointer opacity-60">
+                                    <div class="flex items-center justify-between mb-3">
+                                        <div class="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center font-bold text-gray-700 text-lg">
+                                            K03
+                                        </div>
+                                        <span class="px-3 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded-full">Sterk</span>
+                                    </div>
+                                    <h3 class="font-bold text-gray-900 mb-1">Kube 03</h3>
+                                    <p class="text-sm text-gray-600">Heimebigård</p>
+                                </div>
+
+                                <div class="card-hover bg-white rounded-xl border border-gray-200 p-5 cursor-pointer opacity-60">
+                                    <div class="flex items-center justify-between mb-3">
+                                        <div class="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center font-bold text-gray-700 text-lg">
+                                            K15
+                                        </div>
+                                        <span class="px-3 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded-full">Middels</span>
+                                    </div>
+                                    <h3 class="font-bold text-gray-900 mb-1">Kube 15</h3>
+                                    <p class="text-sm text-gray-600">Lyngbigård</p>
+                                </div>
+
+                                <div class="card-hover bg-white rounded-xl border border-gray-200 p-5 cursor-pointer opacity-60">
+                                    <div class="flex items-center justify-between mb-3">
+                                        <div class="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center font-bold text-gray-700 text-lg">
+                                            K08
+                                        </div>
+                                        <span class="px-3 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded-full">Sterk</span>
+                                    </div>
+                                    <h3 class="font-bold text-gray-900 mb-1">Kube 08</h3>
+                                    <p class="text-sm text-gray-600">Haugbigård</p>
+                                </div>
+
+                                <div class="bg-gray-100 rounded-xl border-2 border-dashed border-gray-300 p-5 flex items-center justify-center cursor-pointer hover:border-gray-400 hover:bg-gray-200 transition">
+                                    <div class="text-center">
+                                        <div class="text-3xl mb-2">+</div>
+                                        <div class="text-sm text-gray-600">Legg til kube</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-center text-sm text-gray-500 mt-4">Kubeoversikt - Grid-visning</p>
+            </div>
+
+            <!-- 3. Detailed Hive View -->
+            <div class="mockup-container bg-white rounded-lg overflow-hidden">
+                <div class="desktop-frame mx-auto">
+                    <div class="bg-gray-800 px-4 py-2 flex items-center gap-2">
+                        <div class="flex gap-2">
+                            <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                            <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                            <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                        </div>
+                        <div class="flex-1 mx-4 bg-gray-700 rounded px-3 py-1 text-xs text-gray-300">
+                            https://birokt.no/kuber/12
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-50 min-h-screen">
+                        <nav class="bg-white border-b border-gray-200 px-6 py-4">
+                            <div class="flex items-center gap-4">
+                                <button class="p-2 hover:bg-gray-100 rounded-lg">←</button>
+                                <div class="flex items-center gap-8">
+                                    <div class="text-2xl font-bold text-amber-600">🐝 Birøkt</div>
+                                </div>
+                            </div>
+                        </nav>
+
+                        <div class="p-6">
+                            <!-- Header -->
+                            <div class="bg-white rounded-xl border border-gray-200 p-6 mb-6">
+                                <div class="flex items-start justify-between">
+                                    <div class="flex gap-6">
+                                        <div class="w-20 h-20 rounded-xl bg-green-100 flex items-center justify-center font-bold text-green-700 text-2xl">
+                                            K12
+                                        </div>
+                                        <div>
+                                            <div class="flex items-center gap-3 mb-2">
+                                                <h1 class="text-3xl font-bold text-gray-900">Kube 12</h1>
+                                                <span class="px-3 py-1 bg-green-100 text-green-700 text-sm font-medium rounded-full">Sterk</span>
+                                            </div>
+                                            <p class="text-gray-600 mb-4">Heimebigård • Produksjonskube</p>
+                                            <div class="flex gap-6 text-sm">
+                                                <div>
+                                                    <div class="text-gray-500">Dronning</div>
+                                                    <div class="font-semibold">2023, Merket 🔵 (Buckfast)</div>
+                                                </div>
+                                                <div>
+                                                    <div class="text-gray-500">Sist inspisert</div>
+                                                    <div class="font-semibold">I dag 14:30</div>
+                                                </div>
+                                                <div>
+                                                    <div class="text-gray-500">Styrke</div>
+                                                    <div class="font-semibold">8 av 10 rammer</div>
+                                                </div>
+                                                <div>
+                                                    <div class="text-gray-500">Honningproduksjon</div>
+                                                    <div class="font-semibold">28 kg (2025)</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <button class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Rediger</button>
+                                        <button class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Ny inspeksjon</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Tabs -->
+                            <div class="bg-white rounded-xl border border-gray-200 mb-6">
+                                <div class="flex border-b border-gray-200">
+                                    <button class="px-6 py-3 border-b-2 border-blue-600 text-blue-600 font-medium">Inspeksjoner</button>
+                                    <button class="px-6 py-3 text-gray-600 hover:bg-gray-50">Behandlinger</button>
+                                    <button class="px-6 py-3 text-gray-600 hover:bg-gray-50">Fôring</button>
+                                    <button class="px-6 py-3 text-gray-600 hover:bg-gray-50">Produksjon</button>
+                                    <button class="px-6 py-3 text-gray-600 hover:bg-gray-50">Bilder</button>
+                                    <button class="px-6 py-3 text-gray-600 hover:bg-gray-50">Notater</button>
+                                </div>
+
+                                <!-- Timeline -->
+                                <div class="p-6">
+                                    <div class="space-y-6">
+                                        <!-- Today -->
+                                        <div class="flex gap-4">
+                                            <div class="flex flex-col items-center">
+                                                <div class="w-3 h-3 bg-green-500 rounded-full"></div>
+                                                <div class="w-0.5 h-full bg-gray-200"></div>
+                                            </div>
+                                            <div class="flex-1 pb-6">
+                                                <div class="bg-gray-50 rounded-lg p-4">
+                                                    <div class="flex items-center justify-between mb-3">
+                                                        <h3 class="font-semibold text-gray-900">Inspeksjon</h3>
+                                                        <span class="text-sm text-gray-500">I dag, 14:30</span>
+                                                    </div>
+                                                    <div class="grid grid-cols-2 gap-4 mb-3">
+                                                        <div>
+                                                            <div class="text-sm text-gray-500">Temperament</div>
+                                                            <div class="font-medium">😊 Rolig</div>
+                                                        </div>
+                                                        <div>
+                                                            <div class="text-sm text-gray-500">Dronning</div>
+                                                            <div class="font-medium">✅ Sett, god egglegging</div>
+                                                        </div>
+                                                        <div>
+                                                            <div class="text-sm text-gray-500">Yngelrammer</div>
+                                                            <div class="font-medium">5 rammer</div>
+                                                        </div>
+                                                        <div>
+                                                            <div class="text-sm text-gray-500">Honningrammer</div>
+                                                            <div class="font-medium">3 rammer (2 lokka)</div>
+                                                        </div>
+                                                    </div>
+                                                    <p class="text-sm text-gray-600 mb-3">Meget sterk koloni. God aktivitet. Ingen tegn til sjukdom eller skadedyr. Honningrom fylles raskt.</p>
+                                                    <div class="flex gap-2">
+                                                        <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Crect fill='%23fbbf24' width='60' height='60'/%3E%3C/svg%3E" class="w-16 h-16 rounded border border-gray-200">
+                                                        <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Crect fill='%2334d399' width='60' height='60'/%3E%3C/svg%3E" class="w-16 h-16 rounded border border-gray-200">
+                                                        <div class="w-16 h-16 rounded border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400 text-xs">+3</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- 1 week ago -->
+                                        <div class="flex gap-4">
+                                            <div class="flex flex-col items-center">
+                                                <div class="w-3 h-3 bg-blue-500 rounded-full"></div>
+                                                <div class="w-0.5 h-full bg-gray-200"></div>
+                                            </div>
+                                            <div class="flex-1 pb-6">
+                                                <div class="bg-gray-50 rounded-lg p-4">
+                                                    <div class="flex items-center justify-between mb-3">
+                                                        <h3 class="font-semibold text-gray-900">Inspeksjon</h3>
+                                                        <span class="text-sm text-gray-500">7 dager siden</span>
+                                                    </div>
+                                                    <p class="text-sm text-gray-600">Fortsatt sterk. Dronning sett. La til honningsutkaster.</p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- 2 weeks ago - Treatment -->
+                                        <div class="flex gap-4">
+                                            <div class="flex flex-col items-center">
+                                                <div class="w-3 h-3 bg-purple-500 rounded-full"></div>
+                                                <div class="w-0.5 h-full bg-gray-200"></div>
+                                            </div>
+                                            <div class="flex-1 pb-6">
+                                                <div class="bg-gray-50 rounded-lg p-4">
+                                                    <div class="flex items-center justify-between mb-3">
+                                                        <h3 class="font-semibold text-gray-900">Behandling</h3>
+                                                        <span class="text-sm text-gray-500">14 dager siden</span>
+                                                    </div>
+                                                    <p class="text-sm text-gray-600">Forebyggende varroabehandling med Apivar. Karenstid: 42 dager.</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-center text-sm text-gray-500 mt-4">Kubedetaljer - Inspeksjonshistorikk</p>
+            </div>
+        </div>
+
+        <!-- MOBILE MOCKUPS -->
+        <div id="mobile-section" class="hidden space-y-16">
+            <h2 class="text-3xl font-bold text-gray-900 mb-8">Mobil/Nettbrett-versjon</h2>
+
+            <div class="flex justify-center gap-12 flex-wrap">
+                <!-- 1. Home/Apiary List -->
+                <div class="space-y-4">
+                    <div class="phone-frame mx-auto">
+                        <div class="phone-notch"></div>
+                        <div class="bg-gradient-to-br from-blue-500 to-blue-600 h-full overflow-auto">
+                            <!-- Status bar -->
+                            <div class="px-6 pt-12 pb-4 text-white">
+                                <div class="flex items-center justify-between mb-2 text-xs">
+                                    <span>9:41</span>
+                                    <div class="flex gap-1">
+                                        <span>📶</span>
+                                        <span>📡</span>
+                                        <span>🔋</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Header -->
+                            <div class="px-6 pb-6 text-white">
+                                <h1 class="text-3xl font-bold mb-2">Bigårder</h1>
+                                <p class="text-blue-100">Velg bigård for inspeksjon</p>
+                            </div>
+
+                            <!-- Apiary cards -->
+                            <div class="bg-gray-50 rounded-t-3xl px-6 py-6 min-h-screen">
+                                <div class="space-y-4">
+                                    <!-- Heimebigård -->
+                                    <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-200 active:scale-95 transition">
+                                        <div class="flex items-center justify-between mb-3">
+                                            <h3 class="text-xl font-bold text-gray-900">Heimebigård</h3>
+                                            <span class="text-2xl">🏡</span>
+                                        </div>
+                                        <div class="grid grid-cols-3 gap-3 mb-3">
+                                            <div class="bg-blue-50 rounded-lg p-3 text-center">
+                                                <div class="text-2xl font-bold text-blue-700">18</div>
+                                                <div class="text-xs text-blue-600">Kuber</div>
+                                            </div>
+                                            <div class="bg-green-50 rounded-lg p-3 text-center">
+                                                <div class="text-2xl font-bold text-green-700">16</div>
+                                                <div class="text-xs text-green-600">Friske</div>
+                                            </div>
+                                            <div class="bg-yellow-50 rounded-lg p-3 text-center">
+                                                <div class="text-2xl font-bold text-yellow-700">2</div>
+                                                <div class="text-xs text-yellow-600">Varsler</div>
+                                            </div>
+                                        </div>
+                                        <p class="text-sm text-gray-600 mb-2">📍 Sandsli, Vestland</p>
+                                        <p class="text-xs text-gray-500">Sist besøk: I dag kl. 14:30</p>
+                                    </div>
+
+                                    <!-- Lyngbigård -->
+                                    <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-200 active:scale-95 transition">
+                                        <div class="flex items-center justify-between mb-3">
+                                            <h3 class="text-xl font-bold text-gray-900">Lyngbigård</h3>
+                                            <span class="text-2xl">🌸</span>
+                                        </div>
+                                        <div class="grid grid-cols-3 gap-3 mb-3">
+                                            <div class="bg-blue-50 rounded-lg p-3 text-center">
+                                                <div class="text-2xl font-bold text-blue-700">15</div>
+                                                <div class="text-xs text-blue-600">Kuber</div>
+                                            </div>
+                                            <div class="bg-green-50 rounded-lg p-3 text-center">
+                                                <div class="text-2xl font-bold text-green-700">14</div>
+                                                <div class="text-xs text-green-600">Friske</div>
+                                            </div>
+                                            <div class="bg-red-50 rounded-lg p-3 text-center">
+                                                <div class="text-2xl font-bold text-red-700">1</div>
+                                                <div class="text-xs text-red-600">Kritisk</div>
+                                            </div>
+                                        </div>
+                                        <p class="text-sm text-gray-600 mb-2">📍 Arna (sesong)</p>
+                                        <p class="text-xs text-gray-500">Sist besøk: I dag kl. 13:15</p>
+                                    </div>
+
+                                    <!-- Haugbigård -->
+                                    <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-200 active:scale-95 transition">
+                                        <div class="flex items-center justify-between mb-3">
+                                            <h3 class="text-xl font-bold text-gray-900">Haugbigård</h3>
+                                            <span class="text-2xl">🏔️</span>
+                                        </div>
+                                        <div class="grid grid-cols-3 gap-3 mb-3">
+                                            <div class="bg-blue-50 rounded-lg p-3 text-center">
+                                                <div class="text-2xl font-bold text-blue-700">12</div>
+                                                <div class="text-xs text-blue-600">Kuber</div>
+                                            </div>
+                                            <div class="bg-green-50 rounded-lg p-3 text-center">
+                                                <div class="text-2xl font-bold text-green-700">12</div>
+                                                <div class="text-xs text-green-600">Friske</div>
+                                            </div>
+                                            <div class="bg-gray-50 rounded-lg p-3 text-center">
+                                                <div class="text-2xl font-bold text-gray-700">0</div>
+                                                <div class="text-xs text-gray-600">Varsler</div>
+                                            </div>
+                                        </div>
+                                        <p class="text-sm text-gray-600 mb-2">📍 Hardanger</p>
+                                        <p class="text-xs text-gray-500">Sist besøk: 3 dager siden</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="text-center text-sm text-gray-500">Bigårdsvelger</p>
+                </div>
+
+                <!-- 2. QR Scanner -->
+                <div class="space-y-4">
+                    <div class="phone-frame mx-auto">
+                        <div class="phone-notch"></div>
+                        <div class="bg-black h-full overflow-hidden relative">
+                            <!-- Camera viewfinder simulation -->
+                            <div class="absolute inset-0 bg-gradient-to-br from-gray-800 to-gray-900 opacity-50"></div>
+                            
+                            <!-- Scanning frame -->
+                            <div class="absolute inset-0 flex items-center justify-center">
+                                <div class="relative w-64 h-64">
+                                    <!-- Corner brackets -->
+                                    <div class="absolute top-0 left-0 w-12 h-12 border-t-4 border-l-4 border-blue-500 rounded-tl-lg"></div>
+                                    <div class="absolute top-0 right-0 w-12 h-12 border-t-4 border-r-4 border-blue-500 rounded-tr-lg"></div>
+                                    <div class="absolute bottom-0 left-0 w-12 h-12 border-b-4 border-l-4 border-blue-500 rounded-bl-lg"></div>
+                                    <div class="absolute bottom-0 right-0 w-12 h-12 border-b-4 border-r-4 border-blue-500 rounded-br-lg"></div>
+                                    
+                                    <!-- Scanning line animation -->
+                                    <div class="absolute top-0 left-0 right-0 h-1 bg-blue-500 animate-pulse"></div>
+                                    
+                                    <!-- QR code placeholder -->
+                                    <div class="absolute inset-8 bg-white rounded-lg p-4 flex items-center justify-center">
+                                        <div class="text-6xl">📱</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Instructions -->
+                            <div class="absolute bottom-32 left-0 right-0 text-center px-6">
+                                <div class="bg-black bg-opacity-75 rounded-2xl p-6 backdrop-blur">
+                                    <h2 class="text-white text-2xl font-bold mb-2">Skann QR-kode</h2>
+                                    <p class="text-gray-300">Plasser QR-koden på kuben innenfor rammen</p>
+                                </div>
+                            </div>
+
+                            <!-- Bottom actions -->
+                            <div class="absolute bottom-8 left-0 right-0 px-6">
+                                <div class="flex justify-center gap-4">
+                                    <button class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center text-white text-xl backdrop-blur">
+                                        💡
+                                    </button>
+                                    <button class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center text-white text-xl backdrop-blur">
+                                        ✕
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="text-center text-sm text-gray-500">QR-kode scanner</p>
+                </div>
+
+                <!-- 3. Inspection Form -->
+                <div class="space-y-4">
+                    <div class="phone-frame mx-auto">
+                        <div class="phone-notch"></div>
+                        <div class="bg-gray-50 h-full overflow-auto">
+                            <!-- Header -->
+                            <div class="bg-white border-b border-gray-200 px-6 pt-12 pb-4">
+                                <div class="flex items-center justify-between mb-4">
+                                    <button class="text-blue-600 font-medium">← Tilbake</button>
+                                    <button class="text-blue-600 font-medium">Lagre</button>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <div class="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center font-bold text-green-700">
+                                        K12
+                                    </div>
+                                    <div>
+                                        <h1 class="text-xl font-bold text-gray-900">Kube 12</h1>
+                                        <p class="text-sm text-gray-600">Heimebigård</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Form -->
+                            <div class="p-6 space-y-6">
+                                <!-- Weather auto-logged -->
+                                <div class="bg-blue-50 rounded-xl p-4">
+                                    <div class="flex items-center gap-3 mb-2">
+                                        <span class="text-2xl">☀️</span>
+                                        <div>
+                                            <div class="font-semibold text-blue-900">18°C, delvis skyet</div>
+                                            <div class="text-sm text-blue-700">Vind: 3 m/s • God dag for inspeksjon</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Strength selector -->
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-900 mb-3">Styrke</label>
+                                    <div class="grid grid-cols-3 gap-3">
+                                        <button class="py-3 rounded-xl border-2 border-gray-300 bg-white text-gray-700">
+                                            <div class="text-2xl mb-1">😟</div>
+                                            <div class="text-sm font-medium">Svak</div>
+                                        </button>
+                                        <button class="py-3 rounded-xl border-2 border-gray-300 bg-white text-gray-700">
+                                            <div class="text-2xl mb-1">😐</div>
+                                            <div class="text-sm font-medium">Middels</div>
+                                        </button>
+                                        <button class="py-3 rounded-xl border-2 border-blue-500 bg-blue-50 text-blue-700">
+                                            <div class="text-2xl mb-1">😊</div>
+                                            <div class="text-sm font-medium">Sterk</div>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Queen status -->
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-900 mb-3">Dronning</label>
+                                    <div class="space-y-3">
+                                        <div class="flex items-center justify-between bg-white rounded-xl p-4 border border-gray-200">
+                                            <span class="text-gray-700">Sett</span>
+                                            <input type="checkbox" checked class="w-6 h-6 text-blue-600 rounded">
+                                        </div>
+                                        <div class="flex items-center justify-between bg-white rounded-xl p-4 border border-gray-200">
+                                            <span class="text-gray-700">Aktiv egglegging</span>
+                                            <input type="checkbox" checked class="w-6 h-6 text-blue-600 rounded">
+                                        </div>
+                                        <div class="flex items-center justify-between bg-white rounded-xl p-4 border border-gray-200">
+                                            <span class="text-gray-700">Merket</span>
+                                            <input type="checkbox" checked class="w-6 h-6 text-blue-600 rounded">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Frame count -->
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-900 mb-3">Rammer</label>
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <div class="bg-white rounded-xl p-4 border border-gray-200">
+                                            <div class="text-sm text-gray-600 mb-2">Yngel</div>
+                                            <div class="flex items-center gap-3">
+                                                <button class="w-8 h-8 rounded-lg bg-gray-100 text-gray-600 font-bold">-</button>
+                                                <span class="text-2xl font-bold text-gray-900">5</span>
+                                                <button class="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 font-bold">+</button>
+                                            </div>
+                                        </div>
+                                        <div class="bg-white rounded-xl p-4 border border-gray-200">
+                                            <div class="text-sm text-gray-600 mb-2">Honning</div>
+                                            <div class="flex items-center gap-3">
+                                                <button class="w-8 h-8 rounded-lg bg-gray-100 text-gray-600 font-bold">-</button>
+                                                <span class="text-2xl font-bold text-gray-900">3</span>
+                                                <button class="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 font-bold">+</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Health -->
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-900 mb-3">Helse</label>
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <button class="py-3 px-4 rounded-xl border-2 border-green-500 bg-green-50 text-green-700 font-medium">
+                                            ✅ Frisk
+                                        </button>
+                                        <button class="py-3 px-4 rounded-xl border-2 border-gray-300 bg-white text-gray-700">
+                                            🦠 Varroa
+                                        </button>
+                                        <button class="py-3 px-4 rounded-xl border-2 border-gray-300 bg-white text-gray-700">
+                                            🐛 Voksmøll
+                                        </button>
+                                        <button class="py-3 px-4 rounded-xl border-2 border-gray-300 bg-white text-gray-700">
+                                            🤒 Annet
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Photos -->
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-900 mb-3">Bilder</label>
+                                    <div class="grid grid-cols-3 gap-3">
+                                        <div class="aspect-square rounded-xl bg-gradient-to-br from-amber-200 to-amber-400"></div>
+                                        <div class="aspect-square rounded-xl bg-gradient-to-br from-green-200 to-green-400"></div>
+                                        <button class="aspect-square rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 flex items-center justify-center text-3xl text-gray-400">
+                                            +
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Notes -->
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-900 mb-3">Notater</label>
+                                    <textarea class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" rows="3" placeholder="Legg til notater..."></textarea>
+                                    <button class="mt-2 text-blue-600 text-sm font-medium flex items-center gap-2">
+                                        🎤 Diktér notater
+                                    </button>
+                                </div>
+
+                                <!-- Save button -->
+                                <button class="w-full py-4 bg-blue-600 text-white rounded-xl font-bold text-lg shadow-lg active:scale-95 transition">
+                                    Lagre inspeksjon
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="text-center text-sm text-gray-500">Inspeksjonsskjema</p>
+                </div>
+
+                <!-- 4. Quick Actions -->
+                <div class="space-y-4">
+                    <div class="phone-frame mx-auto">
+                        <div class="phone-notch"></div>
+                        <div class="bg-gray-50 h-full overflow-auto">
+                            <!-- Header -->
+                            <div class="bg-gradient-to-br from-blue-500 to-blue-600 px-6 pt-12 pb-8 text-white">
+                                <button class="mb-4">← Tilbake</button>
+                                <div class="flex items-center gap-3 mb-4">
+                                    <div class="w-16 h-16 rounded-2xl bg-white bg-opacity-20 flex items-center justify-center font-bold text-2xl backdrop-blur">
+                                        K12
+                                    </div>
+                                    <div>
+                                        <h1 class="text-2xl font-bold">Kube 12</h1>
+                                        <p class="text-blue-100">Heimebigård</p>
+                                    </div>
+                                </div>
+                                <div class="flex gap-2">
+                                    <div class="px-3 py-1 bg-white bg-opacity-20 rounded-full text-sm backdrop-blur">Sterk</div>
+                                    <div class="px-3 py-1 bg-white bg-opacity-20 rounded-full text-sm backdrop-blur">8 rammer</div>
+                                </div>
+                            </div>
+
+                            <!-- Quick actions -->
+                            <div class="px-6 -mt-4">
+                                <div class="bg-white rounded-2xl shadow-lg p-6 mb-6">
+                                    <h2 class="font-bold text-gray-900 mb-4">Hurtighandlinger</h2>
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <button class="p-4 bg-blue-50 rounded-xl text-center active:scale-95 transition">
+                                            <div class="text-3xl mb-2">🔍</div>
+                                            <div class="text-sm font-medium text-blue-900">Ny inspeksjon</div>
+                                        </button>
+                                        <button class="p-4 bg-purple-50 rounded-xl text-center active:scale-95 transition">
+                                            <div class="text-3xl mb-2">💊</div>
+                                            <div class="text-sm font-medium text-purple-900">Behandling</div>
+                                        </button>
+                                        <button class="p-4 bg-green-50 rounded-xl text-center active:scale-95 transition">
+                                            <div class="text-3xl mb-2">🍯</div>
+                                            <div class="text-sm font-medium text-green-900">Fôring</div>
+                                        </button>
+                                        <button class="p-4 bg-amber-50 rounded-xl text-center active:scale-95 transition">
+                                            <div class="text-3xl mb-2">📸</div>
+                                            <div class="text-sm font-medium text-amber-900">Ta bilde</div>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Recent activity -->
+                                <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-6">
+                                    <h2 class="font-bold text-gray-900 mb-4">Siste aktivitet</h2>
+                                    <div class="space-y-4">
+                                        <div class="flex gap-3">
+                                            <div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                                                ✅
+                                            </div>
+                                            <div class="flex-1">
+                                                <div class="font-medium text-gray-900">Inspeksjon</div>
+                                                <div class="text-sm text-gray-600">Sterk koloni, frisk</div>
+                                                <div class="text-xs text-gray-400 mt-1">I dag, 14:30</div>
+                                            </div>
+                                        </div>
+
+                                        <div class="flex gap-3">
+                                            <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                                                📝
+                                            </div>
+                                            <div class="flex-1">
+                                                <div class="font-medium text-gray-900">Inspeksjon</div>
+                                                <div class="text-sm text-gray-600">La til honningrom</div>
+                                                <div class="text-xs text-gray-400 mt-1">7 dager siden</div>
+                                            </div>
+                                        </div>
+
+                                        <div class="flex gap-3">
+                                            <div class="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
+                                                💊
+                                            </div>
+                                            <div class="flex-1">
+                                                <div class="font-medium text-gray-900">Behandling</div>
+                                                <div class="text-sm text-gray-600">Apivar varroabehandling</div>
+                                                <div class="text-xs text-gray-400 mt-1">14 dager siden</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Stats -->
+                                <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-6">
+                                    <h2 class="font-bold text-gray-900 mb-4">Statistikk (2025)</h2>
+                                    <div class="grid grid-cols-2 gap-4">
+                                        <div class="text-center">
+                                            <div class="text-3xl font-bold text-blue-600">18</div>
+                                            <div class="text-sm text-gray-600">Inspeksjoner</div>
+                                        </div>
+                                        <div class="text-center">
+                                            <div class="text-3xl font-bold text-amber-600">28 kg</div>
+                                            <div class="text-sm text-gray-600">Honning</div>
+                                        </div>
+                                        <div class="text-center">
+                                            <div class="text-3xl font-bold text-purple-600">2</div>
+                                            <div class="text-sm text-gray-600">Behandlinger</div>
+                                        </div>
+                                        <div class="text-center">
+                                            <div class="text-3xl font-bold text-green-600">5</div>
+                                            <div class="text-sm text-gray-600">Fôringer</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="text-center text-sm text-gray-500">Kubedetaljer mobil</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showSection(section) {
+            const webSection = document.getElementById('web-section');
+            const mobileSection = document.getElementById('mobile-section');
+            
+            if (section === 'web') {
+                webSection.classList.remove('hidden');
+                mobileSection.classList.add('hidden');
+            } else {
+                webSection.classList.add('hidden');
+                mobileSection.classList.remove('hidden');
+            }
+            
+            window.scrollTo({top: 0, behavior: 'smooth'});
+        }
+    </script>
+</body>
+</html>

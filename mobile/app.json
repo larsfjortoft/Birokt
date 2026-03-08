@@ -1,0 +1,87 @@
+{
+  "expo": {
+    "name": "Birøkt",
+    "slug": "birokt",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "birokt",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#f59e0b"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "no.birokt.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Birøkt trenger kameratilgang for QR-skanning og bilder av kuber.",
+        "NSPhotoLibraryUsageDescription": "Birøkt trenger tilgang til bildebiblioteket for a legge til bilder i inspeksjoner.",
+        "NSLocationWhenInUseUsageDescription": "Birøkt bruker posisjonen din for å vise bigårder i nærheten.",
+        "NSSpeechRecognitionUsageDescription": "Birøkt bruker talegjenkjenning for stemme-til-tekst i notater.",
+        "NSMicrophoneUsageDescription": "Birøkt trenger mikrofontilgang for stemme-til-tekst."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#f59e0b"
+      },
+      "package": "no.birokt.app",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Birøkt trenger kameratilgang for QR-skanning."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Birøkt bruker posisjonen din for å vise bigårder i nærheten."
+        }
+      ],
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Birøkt trenger tilgang til bildebiblioteket for a legge til bilder i inspeksjoner.",
+          "cameraPermission": "Birøkt trenger kameratilgang for a ta bilder under inspeksjoner."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#f59e0b"
+        }
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Birokt trenger mikrofontilgang for stemme-til-tekst."
+        }
+      ],
+      "@sentry/react-native/expo"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
