@@ -17,6 +17,8 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { apiariesApi, hivesApi, inspectionsApi } from '../../lib/api';
 import { VoiceInput } from '../../components/VoiceInput';
+import { useNetworkStatus } from '../../hooks/useOffline';
+import { createInspection, getApiaries, getApiary, getHives, getHiveByQrCode } from '../../services/offlineData';
 
 const strengthOptions = [
   { value: 'strong', label: 'Sterk', color: '#dcfce7', textColor: '#166534' },
@@ -73,6 +75,7 @@ const defaultFormData: QuickFormData = {
 };
 
 export default function BatchInspectionScreen() {
+  const isOnline = useNetworkStatus();
   const [mode, setMode] = useState<'qr' | 'list'>('list');
   const [inspected, setInspected] = useState<InspectedHive[]>([]);
   const [showSummary, setShowSummary] = useState(false);
@@ -94,13 +97,43 @@ export default function BatchInspectionScreen() {
 
   const { data: apiariesData } = useQuery({
     queryKey: ['apiaries'],
-    queryFn: () => apiariesApi.list(),
+    queryFn: async () => {
+      try {
+        return await apiariesApi.list();
+      } catch {
+        return {
+          success: true,
+          data: await getApiaries(),
+        };
+      }
+    },
   });
   const apiaries = (apiariesData?.data || []) as Array<{ id: string; name: string; hiveCount: number }>;
 
   const { data: apiaryData } = useQuery({
     queryKey: ['apiary', selectedApiaryId],
-    queryFn: () => apiariesApi.get(selectedApiaryId!),
+    queryFn: async () => {
+      try {
+        return await apiariesApi.get(selectedApiaryId!);
+      } catch {
+        const apiary = await getApiary(selectedApiaryId!);
+        if (!apiary) {
+          throw new Error('Apiary not found');
+        }
+
+        return {
+          success: true,
+          data: {
+            hives: (await getHives(selectedApiaryId!)).map((hive) => ({
+              id: hive.id,
+              hiveNumber: hive.hiveNumber,
+              status: hive.status,
+              strength: hive.strength,
+            })),
+          },
+        };
+      }
+    },
     enabled: !!selectedApiaryId,
   });
   const hives = ((apiaryData?.data as { hives?: Array<{ id: string; hiveNumber: string; status: string; strength?: string }> })?.hives || []);
@@ -114,9 +147,11 @@ export default function BatchInspectionScreen() {
 
     try {
       const qrCode = data.replace(/^.*QR-/, 'QR-');
-      const response = await hivesApi.getByQr(qrCode);
-      if (response.data) {
-        const hive = response.data as { id: string; hiveNumber: string };
+      const hive = isOnline
+        ? (await hivesApi.getByQr(qrCode)).data as { id: string; hiveNumber: string } | undefined
+        : await getHiveByQrCode(qrCode);
+
+      if (hive) {
         setQrHive(hive);
         setQrForm({ ...defaultFormData });
         setShowQrModal(true);
@@ -133,24 +168,47 @@ export default function BatchInspectionScreen() {
   const saveInspection = useCallback(async (hiveId: string, hiveNumber: string, form: QuickFormData) => {
     setSaving(true);
     try {
-      await inspectionsApi.create({
-        hiveId,
-        inspectionDate: new Date().toISOString(),
-        assessment: {
-          strength: form.strength,
-          queenSeen: form.queenSeen,
-          queenLaying: form.queenLaying,
-        },
-        frames: {
-          brood: form.broodFrames ? parseInt(form.broodFrames) : undefined,
-          honey: form.honeyFrames ? parseInt(form.honeyFrames) : undefined,
-        },
-        health: {
-          status: form.healthStatus,
-        },
-        actions: form.selectedActions.length > 0 ? form.selectedActions.map((a) => ({ actionType: a })) : undefined,
-        notes: form.notes || undefined,
-      });
+      if (isOnline) {
+        await inspectionsApi.create({
+          hiveId,
+          inspectionDate: new Date().toISOString(),
+          assessment: {
+            strength: form.strength,
+            queenSeen: form.queenSeen,
+            queenLaying: form.queenLaying,
+          },
+          frames: {
+            brood: form.broodFrames ? parseInt(form.broodFrames) : undefined,
+            honey: form.honeyFrames ? parseInt(form.honeyFrames) : undefined,
+          },
+          health: {
+            status: form.healthStatus,
+          },
+          actions: form.selectedActions.length > 0 ? form.selectedActions.map((a) => ({ actionType: a })) : undefined,
+          notes: form.notes || undefined,
+        });
+      } else {
+        await createInspection({
+          hiveId,
+          inspectionDate: new Date().toISOString(),
+          weather: {},
+          assessment: {
+            strength: form.strength,
+            queenSeen: form.queenSeen,
+            queenLaying: form.queenLaying,
+          },
+          frames: {
+            brood: form.broodFrames ? parseInt(form.broodFrames) : 0,
+            honey: form.honeyFrames ? parseInt(form.honeyFrames) : 0,
+            pollen: 0,
+            empty: 0,
+          },
+          health: {
+            status: form.healthStatus,
+          },
+          notes: form.notes || undefined,
+        });
+      }
 
       setInspected((prev) => [
         ...prev,
@@ -389,6 +447,7 @@ export default function BatchInspectionScreen() {
         <Text style={styles.progressText}>
           {inspected.length} av {mode === 'list' ? totalHives : '?'} kuber inspisert
         </Text>
+        {!isOnline && <Text style={styles.offlineTag}>Offline</Text>}
         {inspected.length > 0 && (
           <TouchableOpacity onPress={() => setShowSummary(true)}>
             <Text style={styles.finishLink}>Avslutt</Text>
@@ -611,6 +670,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#f59e0b',
+  },
+  offlineTag: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#92400e',
+    backgroundColor: '#fde68a',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
   },
   modeToggle: {
     flexDirection: 'row',

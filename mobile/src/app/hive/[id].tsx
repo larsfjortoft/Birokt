@@ -3,6 +3,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { hivesApi } from '../../lib/api';
+import { getApiary, getHive, getInspections, getPhotosForInspection, getTreatments } from '../../services/offlineData';
 
 interface HiveData {
   id: string;
@@ -66,7 +67,65 @@ export default function HiveDetailScreen() {
 
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['hive', id],
-    queryFn: () => hivesApi.get(id),
+    queryFn: async () => {
+      try {
+        return await hivesApi.get(id);
+      } catch {
+        const hive = await getHive(id);
+        if (!hive) {
+          throw new Error('Hive not found');
+        }
+
+        const [apiary, inspections, treatments] = await Promise.all([
+          getApiary(hive.apiaryId),
+          getInspections(id, 20),
+          getTreatments(id, 20),
+        ]);
+
+        const localInspections = await Promise.all(
+          inspections.map(async (inspection) => ({
+            id: inspection.id,
+            inspectionDate: inspection.inspectionDate,
+            strength: inspection.assessment.strength,
+            healthStatus: inspection.health.status,
+            notes: inspection.notes,
+            photos: (await getPhotosForInspection(inspection.id)).map((photo) => photo.remoteUrl || photo.localPath),
+          }))
+        );
+
+        return {
+          success: true,
+          data: {
+            id: hive.id,
+            hiveNumber: hive.hiveNumber,
+            qrCode: hive.qrCode,
+            apiary: {
+              id: hive.apiaryId,
+              name: apiary?.name || 'Ukjent bigård',
+              location: {
+                name: apiary?.locationName,
+                lat: apiary?.locationLat,
+                lng: apiary?.locationLng,
+              },
+            },
+            status: hive.status,
+            strength: hive.strength,
+            hiveType: hive.hiveType,
+            boxCount: hive.boxCount,
+            queen: hive.queen,
+            currentFrames: hive.currentFrames,
+            inspections: localInspections,
+            treatments: treatments.map((treatment) => ({
+              id: treatment.id,
+              date: treatment.treatmentDate,
+              product: treatment.productName,
+              withholdingEnd: treatment.withholdingEndDate,
+            })),
+            notes: hive.notes,
+          },
+        };
+      }
+    },
   });
 
   const hive = data?.data as HiveData | undefined;

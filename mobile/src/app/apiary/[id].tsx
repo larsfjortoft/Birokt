@@ -3,6 +3,7 @@ import { useLocalSearchParams, router, Stack } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { apiariesApi } from '../../lib/api';
+import { getApiary, getHives } from '../../services/offlineData';
 
 interface Hive {
   id: string;
@@ -33,7 +34,36 @@ export default function ApiaryDetailScreen() {
 
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['apiary', id],
-    queryFn: () => apiariesApi.get(id),
+    queryFn: async () => {
+      try {
+        return await apiariesApi.get(id);
+      } catch {
+        const [apiary, hives] = await Promise.all([getApiary(id), getHives(id)]);
+        if (!apiary) {
+          throw new Error('Apiary not found');
+        }
+
+        return {
+          success: true,
+          data: {
+            id: apiary.id,
+            name: apiary.name,
+            description: apiary.description,
+            location: {
+              name: apiary.locationName,
+              lat: apiary.locationLat,
+              lng: apiary.locationLng,
+            },
+            hives: hives.map((hive) => ({
+              id: hive.id,
+              hiveNumber: hive.hiveNumber,
+              status: hive.status,
+              strength: hive.strength,
+            })),
+          },
+        };
+      }
+    },
   });
 
   const apiary = data?.data as ApiaryData | undefined;

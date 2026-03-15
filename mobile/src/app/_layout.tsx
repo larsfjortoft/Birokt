@@ -8,7 +8,8 @@ import { initDatabase } from '../services/database';
 import { registerForPushNotifications, setupNotificationListeners } from '../services/notifications';
 import { OfflineIndicator } from '../components/OfflineIndicator';
 import { ErrorBoundary } from '../components/ErrorBoundary';
-import { initSentry, setUserContext } from '../lib/sentry';
+import { initSentry, logError, setUserContext } from '../lib/sentry';
+import { fullSync } from '../services/syncManager';
 import * as SplashScreen from 'expo-splash-screen';
 
 initSentry();
@@ -52,6 +53,9 @@ export default function RootLayout() {
     if (isAuthenticated && user) {
       setUserContext(user);
       registerForPushNotifications();
+      fullSync().catch((error) => {
+        logError(error, { context: 'startupFullSync' });
+      });
       const cleanup = setupNotificationListeners();
       return cleanup;
     } else {

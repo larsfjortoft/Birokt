@@ -371,6 +371,17 @@ export interface LocalInspection {
   updatedAt: string;
 }
 
+export interface LocalPhoto {
+  id: string;
+  inspectionId?: string;
+  hiveId: string;
+  localPath: string;
+  remoteUrl?: string;
+  caption?: string;
+  syncedAt?: string;
+  createdAt: string;
+}
+
 export async function getInspections(hiveId: string, limit: number = 20): Promise<LocalInspection[]> {
   const db = getDatabase();
 
@@ -436,7 +447,9 @@ export async function getInspections(hiveId: string, limit: number = 20): Promis
 }
 
 export async function createInspection(
-  inspection: Omit<LocalInspection, 'id' | 'syncedAt' | 'createdAt' | 'updatedAt'>
+  inspection: Omit<LocalInspection, 'id' | 'syncedAt' | 'createdAt' | 'updatedAt'> & {
+    photos?: string[];
+  }
 ): Promise<string> {
   const db = getDatabase();
   const id = generateLocalId();
@@ -493,6 +506,10 @@ export async function createInspection(
     notes: inspection.notes,
   });
 
+  if (inspection.photos && inspection.photos.length > 0) {
+    await savePhotosForInspection(id, inspection.hiveId, inspection.photos);
+  }
+
   return id;
 }
 
@@ -527,6 +544,103 @@ export async function saveInspections(inspections: LocalInspection[]): Promise<v
         inspection.notes ?? null,
         inspection.createdAt,
       ]
+    );
+  }
+}
+
+export async function getPhotosForInspection(inspectionId: string): Promise<LocalPhoto[]> {
+  const db = getDatabase();
+
+  const rows = await db.getAllAsync<{
+    id: string;
+    inspection_id: string | null;
+    hive_id: string;
+    local_path: string;
+    remote_url: string | null;
+    caption: string | null;
+    synced_at: string | null;
+    created_at: string;
+  }>(
+    `SELECT * FROM photos
+     WHERE inspection_id = ?
+     ORDER BY created_at ASC`,
+    [inspectionId]
+  );
+
+  return rows.map((row) => ({
+    id: row.id,
+    inspectionId: row.inspection_id ?? undefined,
+    hiveId: row.hive_id,
+    localPath: row.local_path,
+    remoteUrl: row.remote_url ?? undefined,
+    caption: row.caption ?? undefined,
+    syncedAt: row.synced_at ?? undefined,
+    createdAt: row.created_at,
+  }));
+}
+
+export async function getUnsyncedPhotos(): Promise<LocalPhoto[]> {
+  const db = getDatabase();
+
+  const rows = await db.getAllAsync<{
+    id: string;
+    inspection_id: string | null;
+    hive_id: string;
+    local_path: string;
+    remote_url: string | null;
+    caption: string | null;
+    synced_at: string | null;
+    created_at: string;
+  }>(
+    `SELECT * FROM photos
+     WHERE synced_at IS NULL
+     ORDER BY created_at ASC`
+  );
+
+  return rows.map((row) => ({
+    id: row.id,
+    inspectionId: row.inspection_id ?? undefined,
+    hiveId: row.hive_id,
+    localPath: row.local_path,
+    remoteUrl: row.remote_url ?? undefined,
+    caption: row.caption ?? undefined,
+    syncedAt: row.synced_at ?? undefined,
+    createdAt: row.created_at,
+  }));
+}
+
+export async function savePhotosForInspection(
+  inspectionId: string,
+  hiveId: string,
+  photoUris: string[]
+): Promise<void> {
+  const db = getDatabase();
+
+  for (const uri of photoUris) {
+    await db.runAsync(
+      `INSERT INTO photos
+       (id, inspection_id, hive_id, local_path, created_at)
+       VALUES (?, ?, ?, ?, datetime('now'))`,
+      [generateLocalId(), inspectionId, hiveId, uri]
+    );
+  }
+}
+
+export async function markPhotosSynced(
+  photoIds: string[],
+  remoteUrls?: string[]
+): Promise<void> {
+  if (photoIds.length === 0) return;
+
+  const db = getDatabase();
+
+  for (const [index, photoId] of photoIds.entries()) {
+    await db.runAsync(
+      `UPDATE photos
+       SET synced_at = datetime('now'),
+           remote_url = COALESCE(?, remote_url)
+       WHERE id = ?`,
+      [remoteUrls?.[index] ?? null, photoId]
     );
   }
 }

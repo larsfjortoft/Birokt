@@ -16,6 +16,8 @@ import {
   saveTreatments,
   saveFeedings,
   saveProduction,
+  getUnsyncedPhotos,
+  markPhotosSynced,
   updateLastSync,
   LocalApiary,
   LocalHive,
@@ -77,12 +79,55 @@ export async function syncPendingOperations(): Promise<SyncResult> {
 
   if (__DEV__) console.log(`Sync complete: ${syncedCount} synced, ${failedCount} failed`);
 
+  try {
+    await syncPendingPhotos();
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : 'Unknown photo sync error';
+    errors.push(`PHOTO: ${errorMsg}`);
+    failedCount++;
+  }
+
   return {
     success: failedCount === 0,
     syncedOperations: syncedCount,
     failedOperations: failedCount,
     errors,
   };
+}
+
+async function syncPendingPhotos(): Promise<number> {
+  const photos = await getUnsyncedPhotos();
+  if (photos.length === 0) return 0;
+
+  const grouped = new Map<string, typeof photos>();
+
+  for (const photo of photos) {
+    if (!photo.inspectionId || isLocalId(photo.inspectionId)) continue;
+
+    const key = `${photo.inspectionId}:${photo.hiveId}`;
+    const existing = grouped.get(key) || [];
+    existing.push(photo);
+    grouped.set(key, existing);
+  }
+
+  let syncedCount = 0;
+
+  for (const [key, groupedPhotos] of grouped.entries()) {
+    const [inspectionId, hiveId] = key.split(':');
+    const response = await api.uploadPhotos(
+      '/photos/upload',
+      groupedPhotos.map((photo) => photo.localPath),
+      { inspectionId, hiveId }
+    );
+
+    await markPhotosSynced(
+      groupedPhotos.map((photo) => photo.id),
+      response.data?.urls
+    );
+    syncedCount += groupedPhotos.length;
+  }
+
+  return syncedCount;
 }
 
 // Sync a single operation
@@ -133,6 +178,7 @@ async function syncInspection(
     // Update local ID to server ID
     if (localId && response.data?.id) {
       await updateLocalIdToServerId('inspection', localId, response.data.id);
+      await syncPendingPhotos();
     }
   }
 }

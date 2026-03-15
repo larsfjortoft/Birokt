@@ -20,6 +20,8 @@ import { logError } from '../../lib/sentry';
 import { PhotoPicker } from '../../components/PhotoPicker';
 import { PhotoPreview } from '../../components/PhotoPreview';
 import { VoiceInput } from '../../components/VoiceInput';
+import { useNetworkStatus } from '../../hooks/useOffline';
+import { createInspection, savePhotosForInspection } from '../../services/offlineData';
 
 const weatherOptions = [
   { value: 'sunny', label: 'Sol', icon: 'sunny-outline' },
@@ -67,6 +69,7 @@ export default function NewInspectionScreen() {
     apiaryLng?: string;
   }>();
   const queryClient = useQueryClient();
+  const isOnline = useNetworkStatus();
 
   const [formData, setFormData] = useState({
     temperature: '',
@@ -127,6 +130,13 @@ export default function NewInspectionScreen() {
         }
 
         // Fetch weather from API
+        if (!isOnline) {
+          setWeatherError('Ingen nettforbindelse');
+          setWeatherSource('manual');
+          setWeatherLoading(false);
+          return;
+        }
+
         const response = await weatherApi.current(lat, lng);
 
         if (response.data) {
@@ -149,7 +159,7 @@ export default function NewInspectionScreen() {
     }
 
     fetchWeather();
-  }, [apiaryLat, apiaryLng]);
+  }, [apiaryLat, apiaryLng, isOnline]);
 
   // Map met.no condition codes to our form options
   function mapConditionCode(code: string): string {
@@ -176,6 +186,7 @@ export default function NewInspectionScreen() {
           await inspectionsApi.uploadPhotos(result.data.id, data.hiveId, photos);
         } catch (photoError) {
           logError(photoError, { context: 'uploadPhotos' });
+          await savePhotosForInspection(result.data.id, data.hiveId, photos);
           photosFailed = true;
         } finally {
           setIsUploadingPhotos(false);
@@ -203,8 +214,8 @@ export default function NewInspectionScreen() {
     },
   });
 
-  const handleSave = () => {
-    createMutation.mutate({
+  const handleSave = async () => {
+    const payload = {
       hiveId,
       inspectionDate: new Date().toISOString(),
       weather: {
@@ -230,7 +241,44 @@ export default function NewInspectionScreen() {
       },
       actions: selectedActions.length > 0 ? selectedActions.map((a) => ({ actionType: a })) : undefined,
       notes: formData.notes || undefined,
-    });
+    };
+
+    if (isOnline) {
+      createMutation.mutate(payload);
+      return;
+    }
+
+    try {
+      await createInspection({
+        hiveId: payload.hiveId,
+        inspectionDate: payload.inspectionDate,
+        weather: payload.weather || {},
+        assessment: {
+          strength: payload.assessment?.strength,
+          temperament: payload.assessment?.temperament,
+          queenSeen: payload.assessment?.queenSeen ?? false,
+          queenLaying: payload.assessment?.queenLaying ?? false,
+        },
+        frames: {
+          brood: payload.frames?.brood ?? 0,
+          honey: payload.frames?.honey ?? 0,
+          pollen: payload.frames?.pollen ?? 0,
+          empty: payload.frames?.empty ?? 0,
+        },
+        health: {
+          status: payload.health?.status || 'healthy',
+          varroaLevel: payload.health?.varroaLevel,
+        },
+        notes: payload.notes,
+        photos,
+      });
+      queryClient.invalidateQueries({ queryKey: ['hive', hiveId] });
+      Alert.alert('Lagret lokalt', 'Inspeksjonen og eventuelle bilder synkroniseres når du er tilkoblet.', [
+        { text: 'OK', onPress: () => router.back() },
+      ]);
+    } catch {
+      Alert.alert('Feil', 'Kunne ikke lagre inspeksjonen lokalt');
+    }
   };
 
   const updateField = (field: string, value: unknown) => {
@@ -249,6 +297,12 @@ export default function NewInspectionScreen() {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
       >
+        {!isOnline && (
+          <View style={styles.offlineBanner}>
+            <Ionicons name="cloud-offline-outline" size={16} color="#92400e" />
+            <Text style={styles.offlineText}>Offline - inspeksjonen lagres lokalt</Text>
+          </View>
+        )}
         <View style={styles.header}>
         <Text style={styles.headerTitle}>Kube {hiveNumber}</Text>
         <Text style={styles.headerDate}>
@@ -849,5 +903,20 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: 32,
+  },
+  offlineBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#fef3c7',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 12,
+  },
+  offlineText: {
+    fontSize: 13,
+    color: '#92400e',
+    fontWeight: '500',
   },
 });

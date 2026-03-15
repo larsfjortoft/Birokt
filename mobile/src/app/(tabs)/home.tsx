@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { apiariesApi } from '../../lib/api';
+import { getApiaries } from '../../services/offlineData';
 
 interface Apiary {
   id: string;
@@ -16,7 +17,28 @@ interface Apiary {
 export default function HomeScreen() {
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['apiaries'],
-    queryFn: () => apiariesApi.list(),
+    queryFn: async () => {
+      try {
+        return await apiariesApi.list();
+      } catch {
+        const localApiaries = await getApiaries();
+        return {
+          success: true,
+          data: localApiaries.map((apiary) => ({
+            id: apiary.id,
+            name: apiary.name,
+            description: apiary.description,
+            location: {
+              name: apiary.locationName,
+              lat: apiary.locationLat,
+              lng: apiary.locationLng,
+            },
+            hiveCount: apiary.hiveCount,
+            stats: apiary.stats,
+          })),
+        };
+      }
+    },
   });
 
   const apiaries = data?.data || [];
