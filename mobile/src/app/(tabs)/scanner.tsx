@@ -49,7 +49,7 @@ export default function ScannerScreen() {
         <Ionicons name="camera-off-outline" size={64} color="#d1d5db" />
         <Text style={styles.title}>Kameratilgang kreves</Text>
         <Text style={styles.text}>
-          Birokt trenger tilgang til kameraet for a skanne QR-koder pa kubene
+          Birøkt trenger tilgang til kameraet for å skanne QR-koder på kubene
         </Text>
         <TouchableOpacity style={styles.permissionButton} onPress={requestPermission}>
           <Text style={styles.permissionButtonText}>Gi tilgang</Text>
@@ -77,7 +77,7 @@ export default function ScannerScreen() {
           </View>
 
           <Text style={styles.instruction}>
-            {isSearching ? 'Soker...' : 'Plasser QR-koden i rammen'}
+            {isSearching ? 'Søker...' : 'Plasser QR-koden i rammen'}
           </Text>
         </View>
       </CameraView>
@@ -91,7 +91,7 @@ export default function ScannerScreen() {
             accessibilityLabel="Skann på nytt"
           >
             <Ionicons name="refresh" size={20} color="#fff" />
-            <Text style={styles.buttonText}>Skann pa nytt</Text>
+            <Text style={styles.buttonText}>Skann på nytt</Text>
           </TouchableOpacity>
         </View>
       )}

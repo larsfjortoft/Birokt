@@ -43,8 +43,8 @@ export default function LoginScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <View style={styles.header}>
-        <Text style={styles.logo}>Birokt</Text>
-        <Text style={styles.subtitle}>Digitalt styringssystem for biroktere</Text>
+        <Text style={styles.logo}>Birøkt</Text>
+        <Text style={styles.subtitle}>Digitalt styringssystem for birøktere</Text>
       </View>
 
       <View style={styles.form}>

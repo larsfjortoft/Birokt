@@ -45,7 +45,7 @@ const statusLabels: Record<string, string> = {
   mated: 'Paret',
   laying: 'Leggende',
   failed: 'Feilet',
-  dead: 'Dod',
+  dead: 'Død',
   sold: 'Solgt',
   missing: 'Savnet',
 };
@@ -62,7 +62,7 @@ const statusVariants: Record<string, 'success' | 'warning' | 'danger' | 'default
 
 const originLabels: Record<string, string> = {
   own_production: 'Egen produksjon',
-  purchased: 'Kjopt',
+  purchased: 'Kjøpt',
   swarm: 'Sverm',
   gifted: 'Gave',
   other: 'Annet',
@@ -152,7 +152,7 @@ export default function QueensPage() {
                 <Crown className="w-6 h-6 text-blue-600" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">I ar ({new Date().getFullYear()})</p>
+                <p className="text-sm text-gray-500">I år ({new Date().getFullYear()})</p>
                 <p className="text-2xl font-bold">{thisYearQueens}</p>
               </div>
             </div>
@@ -166,7 +166,7 @@ export default function QueensPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
-            placeholder="Sok etter dronningkode, rase..."
+            placeholder="Søk etter dronningkode, rase..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-honey-500"
@@ -198,7 +198,7 @@ export default function QueensPage() {
             <div className="text-center py-12">
               <Crown className="w-12 h-12 text-gray-300 mx-auto mb-4" />
               <p className="text-gray-500 mb-2">Ingen dronninger registrert</p>
-              <p className="text-sm text-gray-400 mb-4">Start med a registrere din forste dronning</p>
+              <p className="text-sm text-gray-400 mb-4">Start med å registrere din første dronning</p>
               <Button onClick={() => setShowCreateModal(true)}>
                 <Plus className="w-4 h-4 mr-2" />
                 Legg til dronning
@@ -250,7 +250,7 @@ export default function QueensPage() {
                         )}
                         {queen.daughterCount > 0 && (
                           <span className="text-xs text-gray-400">
-                            {queen.daughterCount} dotre
+                            {queen.daughterCount} døtre
                           </span>
                         )}
                         {queen.rating && (
@@ -350,9 +350,9 @@ function CreateQueenModal({
   const colorOptions = [
     { value: 'white', label: 'Hvit', hex: '#FFFFFF' },
     { value: 'yellow', label: 'Gul', hex: '#FFD700' },
-    { value: 'red', label: 'Rod', hex: '#FF0000' },
-    { value: 'green', label: 'Gronn', hex: '#00FF00' },
-    { value: 'blue', label: 'Bla', hex: '#0000FF' },
+    { value: 'red', label: 'Rød', hex: '#FF0000' },
+    { value: 'green', label: 'Grønn', hex: '#00FF00' },
+    { value: 'blue', label: 'Blå', hex: '#0000FF' },
   ];
 
   return (
@@ -368,7 +368,7 @@ function CreateQueenModal({
             required
           />
           <Input
-            label="Ar *"
+            label="År *"
             type="number"
             min="2000"
             max="2100"

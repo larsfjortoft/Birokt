@@ -8,6 +8,8 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -79,7 +81,7 @@ export default function NewInspectionScreen() {
     pollenFrames: '',
     emptyFrames: '',
     healthStatus: 'healthy',
-    varroaLevel: 'low',
+    varroaLevel: 'none',
     notes: '',
   });
 
@@ -139,7 +141,7 @@ export default function NewInspectionScreen() {
         }
       } catch (error) {
         logError(error, { context: 'fetchWeather' });
-        setWeatherError('Kunne ikke hente vaerdata');
+        setWeatherError('Kunne ikke hente værdata');
         setWeatherSource('manual');
       } finally {
         setWeatherLoading(false);
@@ -187,7 +189,7 @@ export default function NewInspectionScreen() {
       if (photosFailed) {
         Alert.alert(
           'Delvis lagret',
-          'Inspeksjonen ble lagret, men bildene kunne ikke lastes opp. Bildeopplasting er ikke stottet pa serveren enna.',
+          'Inspeksjonen ble lagret, men bildene kunne ikke lastes opp. Bildeopplasting er ikke støttet på serveren ennå.',
           [{ text: 'OK', onPress: () => router.back() }]
         );
       } else {
@@ -236,8 +238,18 @@ export default function NewInspectionScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.header}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 24 : 0}
+    >
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+      >
+        <View style={styles.header}>
         <Text style={styles.headerTitle}>Kube {hiveNumber}</Text>
         <Text style={styles.headerDate}>
           {new Date().toLocaleDateString('nb-NO', {
@@ -253,7 +265,7 @@ export default function NewInspectionScreen() {
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>
-            <Ionicons name="thermometer-outline" size={18} color="#f59e0b" /> Vaer
+            <Ionicons name="thermometer-outline" size={18} color="#f59e0b" /> Vær
           </Text>
           {weatherLoading ? (
             <View style={styles.weatherStatus}>
@@ -311,7 +323,7 @@ export default function NewInspectionScreen() {
           </View>
         </View>
 
-        <Text style={styles.label}>Vaerforhold</Text>
+        <Text style={styles.label}>Værforhold</Text>
         <View style={styles.buttonRow}>
           {weatherOptions.map((opt) => (
             <TouchableOpacity
@@ -657,8 +669,9 @@ export default function NewInspectionScreen() {
         )}
       </TouchableOpacity>
 
-      <View style={{ height: 32 }} />
-    </ScrollView>
+        <View style={styles.bottomSpacer} />
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -669,6 +682,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
+    paddingBottom: 96,
   },
   header: {
     marginBottom: 16,
@@ -832,5 +846,8 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  bottomSpacer: {
+    height: 32,
   },
 });

@@ -93,7 +93,7 @@ let server: ReturnType<typeof app.listen> | null = null;
 // Start server outside tests
 if (env.NODE_ENV !== 'test') {
   server = app.listen(PORT, () => {
-    console.log(`Birokt API server running on http://localhost:${PORT}`);
+    console.log(`Birøkt API server running on http://localhost:${PORT}`);
     console.log(`API base URL: http://localhost:${PORT}/api/v1`);
 
     // Start notification scheduler

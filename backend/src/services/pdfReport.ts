@@ -79,7 +79,7 @@ export async function generateSeasonReport(userId: string, year: number): Promis
     doc.fontSize(24).font('Helvetica-Bold').text('Sesongrapport', { align: 'center' });
     doc.fontSize(16).font('Helvetica').text(`${year}`, { align: 'center' });
     doc.moveDown(0.5);
-    doc.fontSize(12).text(`Birokt — ${user?.name || 'Ukjent birakter'}`, { align: 'center' });
+    doc.fontSize(12).text(`Birøkt - ${user?.name || 'Ukjent birøkter'}`, { align: 'center' });
     doc.fontSize(10).text(`Generert: ${new Date().toLocaleDateString('nb-NO')}`, { align: 'center' });
     doc.moveDown(1.5);
 
@@ -123,7 +123,7 @@ export async function generateSeasonReport(userId: string, year: number): Promis
       doc.fontSize(13).font('Helvetica-Bold').text(apiary.name);
       const activeCount = apiary.hives.filter(h => h.status === 'active').length;
       doc.fontSize(10).font('Helvetica')
-        .text(`${apiary.hives.length} kuber (${activeCount} aktive) — ${apiary.locationName || 'Ingen lokasjon'}`);
+        .text(`${apiary.hives.length} kuber (${activeCount} aktive) - ${apiary.locationName || 'Ingen lokasjon'}`);
       doc.moveDown(0.3);
     }
 
@@ -174,7 +174,7 @@ export async function generateSeasonReport(userId: string, year: number): Promis
     // Footer
     doc.fontSize(8).font('Helvetica').fillColor('#9ca3af')
       .text(
-        'Denne rapporten er generert av Birokt — digitalt biroktverktoy. Kan brukes som dokumentasjon for Mattilsynet.',
+        'Denne rapporten er generert av Birøkt - digitalt birøktverktøy. Kan brukes som dokumentasjon for Mattilsynet.',
         50, 770,
         { align: 'center', width: 495 }
       );
@@ -212,8 +212,8 @@ export async function generateHiveReport(userId: string, hiveId: string, year: n
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
 
-    doc.fontSize(20).font('Helvetica-Bold').text(`Kuberapport — ${hive.hiveNumber}`, { align: 'center' });
-    doc.fontSize(14).font('Helvetica').text(`${hive.apiary.name} — ${year}`, { align: 'center' });
+    doc.fontSize(20).font('Helvetica-Bold').text(`Kuberapport - ${hive.hiveNumber}`, { align: 'center' });
+    doc.fontSize(14).font('Helvetica').text(`${hive.apiary.name} - ${year}`, { align: 'center' });
     doc.moveDown(1.5);
 
     doc.fontSize(12).font('Helvetica-Bold').text('Kubeinformasjon');
@@ -222,7 +222,7 @@ export async function generateHiveReport(userId: string, hiveId: string, year: n
     doc.text(`Status: ${hive.status}`);
     doc.text(`Type: ${hive.hiveType}`);
     doc.text(`Kasser: ${hive.boxCount}`);
-    if (hive.queenYear) doc.text(`Dronningens ar: ${hive.queenYear}`);
+    if (hive.queenYear) doc.text(`Dronningens år: ${hive.queenYear}`);
     doc.moveDown(1);
 
     doc.fontSize(12).font('Helvetica-Bold').text(`Inspeksjoner (${inspections.length})`);
@@ -231,10 +231,10 @@ export async function generateHiveReport(userId: string, hiveId: string, year: n
 
     for (const insp of inspections) {
       if (doc.y > 720) { doc.addPage(); doc.y = 50; }
-      doc.font('Helvetica-Bold').text(`${formatDate(insp.inspectionDate)} — ${insp.healthStatus}`, { underline: true });
+      doc.font('Helvetica-Bold').text(`${formatDate(insp.inspectionDate)} - ${insp.healthStatus}`, { underline: true });
       doc.font('Helvetica');
       doc.text(`Styrke: ${insp.strength || '-'} | Temperament: ${insp.temperament || '-'} | Dronning sett: ${insp.queenSeen ? 'Ja' : 'Nei'}`);
-      doc.text(`Rammer — Yngel: ${insp.broodFrames}, Honning: ${insp.honeyFrames}, Pollen: ${insp.pollenFrames}, Tomme: ${insp.emptyFrames}`);
+      doc.text(`Rammer - Yngel: ${insp.broodFrames}, Honning: ${insp.honeyFrames}, Pollen: ${insp.pollenFrames}, Tomme: ${insp.emptyFrames}`);
       if (insp.notes) doc.text(`Notat: ${insp.notes}`);
       doc.moveDown(0.5);
     }
@@ -246,7 +246,7 @@ export async function generateHiveReport(userId: string, hiveId: string, year: n
 
     for (const t of treatments) {
       if (doc.y > 720) { doc.addPage(); doc.y = 50; }
-      doc.text(`${formatDate(t.treatmentDate)} — ${t.productName} (${t.target || '-'}) ${t.dosage ? '— ' + t.dosage : ''}`);
+      doc.text(`${formatDate(t.treatmentDate)} - ${t.productName} (${t.target || '-'})${t.dosage ? ` - ${t.dosage}` : ''}`);
     }
 
     doc.end();
@@ -292,7 +292,7 @@ export async function generateApiaryReport(userId: string, apiaryId: string, yea
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
 
-    doc.fontSize(20).font('Helvetica-Bold').text(`Bigardrapport — ${apiary.name}`, { align: 'center' });
+    doc.fontSize(20).font('Helvetica-Bold').text(`Bigårdrapport - ${apiary.name}`, { align: 'center' });
     doc.fontSize(14).font('Helvetica').text(`${year}`, { align: 'center' });
     doc.moveDown(1.5);
 
@@ -312,7 +312,7 @@ export async function generateApiaryReport(userId: string, apiaryId: string, yea
     doc.fontSize(9).font('Helvetica');
 
     for (const hive of apiary.hives) {
-      doc.text(`${hive.hiveNumber} — ${hive.status} | Styrke: ${hive.strength || '-'} | Kasser: ${hive.boxCount}`);
+      doc.text(`${hive.hiveNumber} - ${hive.status} | Styrke: ${hive.strength || '-'} | Kasser: ${hive.boxCount}`);
     }
 
     doc.moveDown(1);
@@ -321,7 +321,7 @@ export async function generateApiaryReport(userId: string, apiaryId: string, yea
     doc.fontSize(9).font('Helvetica');
 
     for (const t of treatments) {
-      doc.text(`${formatDate(t.treatmentDate)} — Kube ${t.hive.hiveNumber}: ${t.productName} (${t.target || '-'})`);
+      doc.text(`${formatDate(t.treatmentDate)} - Kube ${t.hive.hiveNumber}: ${t.productName} (${t.target || '-'})`);
     }
 
     doc.end();

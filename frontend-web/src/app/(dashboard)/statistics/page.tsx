@@ -49,7 +49,7 @@ export default function StatisticsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Statistikk</h1>
-          <p className="text-gray-500">Grafer og trender for din birokt</p>
+          <p className="text-gray-500">Grafer og trender for din birøkt</p>
         </div>
         <select
           value={selectedYear}
@@ -95,7 +95,7 @@ export default function StatisticsPage() {
       {/* Production chart */}
       <Card>
         <CardHeader>
-          <CardTitle>Honningproduksjon per maned</CardTitle>
+          <CardTitle>Honningproduksjon per måned</CardTitle>
         </CardHeader>
         <CardContent>
           {charts?.monthlyProduction ? (

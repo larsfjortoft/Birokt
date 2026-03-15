@@ -69,8 +69,8 @@ async function sendInspectionReminders(): Promise<void> {
 
             await sendToUser(
               user.id,
-              'Inspeksjonspaminnelse',
-              `Kube ${hive.hiveNumber} i ${ua.apiary.name} har ikke blitt inspisert pa ${days} dager`,
+              'Inspeksjonspåminnelse',
+              `Kube ${hive.hiveNumber} i ${ua.apiary.name} har ikke blitt inspisert på ${days} dager`,
               { type: 'inspection_reminder', hiveId: hive.id }
             );
 
@@ -135,8 +135,8 @@ async function sendTreatmentReminders(): Promise<void> {
 
       await sendToUser(
         treatment.userId,
-        'Tilbakeholdelse utloper',
-        `Tilbakeholdelsesperiode for ${treatment.productName} i kube ${treatment.hive.hiveNumber} utloper i dag`,
+        'Tilbakeholdelse utløper',
+        `Tilbakeholdelsesperiode for ${treatment.productName} i kube ${treatment.hive.hiveNumber} utløper i dag`,
         { type: 'treatment_withholding', hiveId: treatment.hiveId }
       );
 
@@ -192,7 +192,7 @@ async function sendWeatherAlerts(): Promise<void> {
           `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${apiary.locationLat}&lon=${apiary.locationLng}`,
           {
             headers: {
-              'User-Agent': 'Birokt/1.0 github.com/birokt',
+              'User-Agent': 'Birøkt/1.0 github.com/birokt',
             },
           }
         );
@@ -219,7 +219,7 @@ async function sendWeatherAlerts(): Promise<void> {
             break;
           }
           if (temp !== undefined && temp > 35) {
-            alerts.push(`Hoy temperatur: ${temp}°C`);
+            alerts.push(`Høy temperatur: ${temp}°C`);
             break;
           }
           if (wind !== undefined && wind > 15) {
@@ -237,8 +237,8 @@ async function sendWeatherAlerts(): Promise<void> {
 
           await sendToUser(
             ua.userId,
-            'Vaervarsel',
-            `Ekstremaer forventet i ${apiary.name}: ${alerts.join(', ')}`,
+            'Værvarsel',
+            `Ekstremvær forventet i ${apiary.name}: ${alerts.join(', ')}`,
             { type: 'weather_alert', apiaryId: apiary.id }
           );
         }

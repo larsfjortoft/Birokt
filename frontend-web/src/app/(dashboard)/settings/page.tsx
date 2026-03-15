@@ -77,7 +77,7 @@ export default function SettingsPage() {
       return;
     }
     if (newPassword.length < 8) {
-      toast.error('Passord ma vaere minst 8 tegn');
+      toast.error('Passord må være minst 8 tegn');
       return;
     }
     changePasswordMutation.mutate({ currentPassword, newPassword });
@@ -174,8 +174,8 @@ export default function SettingsPage() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-medium text-gray-900">Inspeksjonspaminnelser</p>
-                <p className="text-sm text-gray-500">Fa varsel nar det er pa tide a inspisere</p>
+                <p className="font-medium text-gray-900">Inspeksjonspåminnelser</p>
+                <p className="text-sm text-gray-500">Få varsel når det er på tide å inspisere</p>
               </div>
               <input
                 type="checkbox"
@@ -185,7 +185,7 @@ export default function SettingsPage() {
             </div>
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-medium text-gray-900">Vaervarsler</p>
+                <p className="font-medium text-gray-900">Værvarsler</p>
                 <p className="text-sm text-gray-500">Bli varslet om gode inspeksjonsforhold</p>
               </div>
               <input
@@ -213,7 +213,7 @@ export default function SettingsPage() {
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Navaerende passord
+                Nåværende passord
               </label>
               <input
                 type="password"
@@ -265,10 +265,10 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-gray-500 mb-3">
-            Ga til Rapporter-siden for a laste ned dine data i CSV- eller PDF-format.
+            Gå til Rapporter-siden for å laste ned dine data i CSV- eller PDF-format.
           </p>
           <Button variant="outline" onClick={() => router.push('/reports')}>
-            Ga til rapporter
+            Gå til rapporter
           </Button>
         </CardContent>
       </Card>
@@ -294,7 +294,7 @@ export default function SettingsPage() {
           ) : (
             <div className="space-y-3 p-4 bg-red-50 rounded-lg border border-red-200">
               <p className="text-sm font-medium text-red-800">
-                Er du sikker? Skriv SLETT for a bekrefte:
+                Er du sikker? Skriv SLETT for å bekrefte:
               </p>
               <input
                 type="text"

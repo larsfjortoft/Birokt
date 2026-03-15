@@ -10,7 +10,7 @@ const router = Router();
 // Met.no Locationforecast API
 // Docs: https://api.met.no/weatherapi/locationforecast/2.0/documentation
 const MET_API_BASE = 'https://api.met.no/weatherapi/locationforecast/2.0';
-const USER_AGENT = 'Birokt/1.0 (https://birokt.no; support@birokt.no)';
+const USER_AGENT = 'Birøkt/1.0 (https://birokt.no; support@birokt.no)';
 
 // Cache for weather data (simple in-memory cache)
 interface WeatherCache {

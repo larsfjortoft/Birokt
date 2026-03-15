@@ -66,7 +66,7 @@ export function VoiceInput({ onTranscript }: VoiceInputProps) {
   useEvent('error', (event: any) => {
     setIsListening(false);
     if (event.error !== 'no-speech') {
-      Alert.alert('Talefeil', 'Kunne ikke gjenkjenne tale. Prov igjen.');
+      Alert.alert('Talefeil', 'Kunne ikke gjenkjenne tale. Prøv igjen.');
     }
   });
 

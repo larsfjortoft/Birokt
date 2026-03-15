@@ -30,7 +30,7 @@ export function PhotoPicker({ photos, onPhotosChange }: PhotoPickerProps) {
     if (status !== 'granted') {
       Alert.alert(
         'Tillatelse kreves',
-        'Appen trenger tilgang til kameraet for a ta bilder.'
+        'Appen trenger tilgang til kameraet for å ta bilder.'
       );
       return false;
     }
@@ -42,7 +42,7 @@ export function PhotoPicker({ photos, onPhotosChange }: PhotoPickerProps) {
     if (status !== 'granted') {
       Alert.alert(
         'Tillatelse kreves',
-        'Appen trenger tilgang til bildebiblioteket for a velge bilder.'
+        'Appen trenger tilgang til bildebiblioteket for å velge bilder.'
       );
       return false;
     }

@@ -64,7 +64,7 @@ export default function NotificationSettingsScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Paminnelser</Text>
+        <Text style={styles.sectionTitle}>Påminnelser</Text>
 
         <View style={styles.settingRow}>
           <View style={styles.settingInfo}>
@@ -72,8 +72,8 @@ export default function NotificationSettingsScreen() {
               <Ionicons name="search-outline" size={18} color="#3b82f6" />
             </View>
             <View>
-              <Text style={styles.settingLabel}>Inspeksjonspaminnelser</Text>
-              <Text style={styles.settingDesc}>Paming nar kuber ikke er inspisert pa 14 dager</Text>
+              <Text style={styles.settingLabel}>Inspeksjonspåminnelser</Text>
+              <Text style={styles.settingDesc}>Påminnelse når kuber ikke er inspisert på 14 dager</Text>
             </View>
           </View>
           <Switch
@@ -96,8 +96,8 @@ export default function NotificationSettingsScreen() {
               <Ionicons name="medkit-outline" size={18} color="#ec4899" />
             </View>
             <View>
-              <Text style={styles.settingLabel}>Behandlingspaminnelser</Text>
-              <Text style={styles.settingDesc}>Varsel nar tilbakeholdelsesperiode utloper</Text>
+              <Text style={styles.settingLabel}>Behandlingspåminnelser</Text>
+              <Text style={styles.settingDesc}>Varsel når tilbakeholdelsesperiode utløper</Text>
             </View>
           </View>
           <Switch
@@ -120,8 +120,8 @@ export default function NotificationSettingsScreen() {
               <Ionicons name="cloud-outline" size={18} color="#22c55e" />
             </View>
             <View>
-              <Text style={styles.settingLabel}>Vaervarslinger</Text>
-              <Text style={styles.settingDesc}>Varsel ved ekstremt vaer i bigardene</Text>
+              <Text style={styles.settingLabel}>Værvarslinger</Text>
+              <Text style={styles.settingDesc}>Varsel ved ekstremt vær i bigårdene</Text>
             </View>
           </View>
           <Switch

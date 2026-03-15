@@ -74,7 +74,7 @@ export default function HomeScreen() {
   if (isLoading) {
     return (
       <View style={styles.centered}>
-        <Text style={styles.loadingText}>Laster bigarder...</Text>
+        <Text style={styles.loadingText}>Laster bigårder...</Text>
       </View>
     );
   }
@@ -106,9 +106,9 @@ export default function HomeScreen() {
         ListEmptyComponent={
           <View style={styles.empty}>
             <Ionicons name="leaf-outline" size={48} color="#d1d5db" />
-            <Text style={styles.emptyTitle}>Ingen bigarder</Text>
+            <Text style={styles.emptyTitle}>Ingen bigårder</Text>
             <Text style={styles.emptyText}>
-              Opprett din forste bigard i nettleseren for a komme i gang
+              Opprett din første bigård i nettleseren for å komme i gang
             </Text>
           </View>
         }

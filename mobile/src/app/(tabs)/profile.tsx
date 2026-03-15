@@ -101,7 +101,7 @@ export default function ProfileScreen() {
       </TouchableOpacity>
 
       {/* App version */}
-      <Text style={styles.version}>Birokt v1.0.0</Text>
+      <Text style={styles.version}>Birøkt v1.0.0</Text>
     </View>
   );
 }

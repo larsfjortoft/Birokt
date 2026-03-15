@@ -445,7 +445,7 @@ export default function BatchInspectionScreen() {
                   <View style={[styles.corner, styles.bottomRight]} />
                 </View>
                 <Text style={styles.instruction}>
-                  {isSearching ? 'Soker...' : 'Skann kube-QR for rask inspeksjon'}
+                  {isSearching ? 'Søker...' : 'Skann kube-QR for rask inspeksjon'}
                 </Text>
               </View>
             </CameraView>
@@ -508,7 +508,7 @@ export default function BatchInspectionScreen() {
           {!selectedApiaryId ? (
             <View style={styles.centered}>
               <Ionicons name="location-outline" size={48} color="#d1d5db" />
-              <Text style={styles.selectText}>Velg en bigard for a starte</Text>
+              <Text style={styles.selectText}>Velg en bigård for å starte</Text>
             </View>
           ) : (
             <FlatList

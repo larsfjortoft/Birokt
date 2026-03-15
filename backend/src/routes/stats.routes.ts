@@ -600,7 +600,7 @@ router.get('/report/pdf', validateQuery(pdfReportQuerySchema), async (req: Reque
           return;
         }
         pdfBuffer = await generateApiaryReport(userId, id, year);
-        filename = `bigardrapport-${year}.pdf`;
+        filename = `bigårdrapport-${year}.pdf`;
         break;
       default:
         sendError(res, ErrorCodes.VALIDATION_ERROR, 'Invalid report type', 400);

@@ -34,7 +34,7 @@ export default function RegisterScreen() {
     }
 
     if (password.length < 8) {
-      Alert.alert('Feil', 'Passord ma vaere minst 8 tegn');
+      Alert.alert('Feil', 'Passord må være minst 8 tegn');
       return;
     }
 
@@ -54,13 +54,19 @@ export default function RegisterScreen() {
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 24 : 0}
     >
       <View style={styles.header}>
-        <Text style={styles.logo}>Birokt</Text>
+        <Text style={styles.logo}>Birøkt</Text>
         <Text style={styles.subtitle}>Opprett din konto</Text>
       </View>
 
-      <ScrollView style={styles.form} contentContainerStyle={styles.formContent}>
+      <ScrollView
+        style={styles.form}
+        contentContainerStyle={styles.formContent}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+      >
         <Text style={styles.title}>Registrer deg</Text>
 
         <View style={styles.inputGroup}>
