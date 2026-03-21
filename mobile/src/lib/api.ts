@@ -353,6 +353,55 @@ export const productionApi = {
     }>>('/production', params),
 };
 
+// Calendar API
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  description?: string;
+  eventDate: string;
+  endDate?: string;
+  eventType: string;
+  allDay: boolean;
+  color?: string;
+  apiary?: { id: string; name: string } | null;
+  hive?: { id: string; hiveNumber: string; apiaryName: string } | null;
+  notes?: string;
+  completed: boolean;
+  createdAt: string;
+}
+
+export const calendarApi = {
+  list: (params?: Record<string, string>) =>
+    api.get<Array<CalendarEvent>>('/calendar', params),
+
+  get: (id: string) =>
+    api.get<CalendarEvent>(`/calendar/${id}`),
+
+  create: (data: {
+    title: string;
+    description?: string;
+    eventDate: string;
+    endDate?: string;
+    eventType: string;
+    allDay?: boolean;
+    apiaryId?: string;
+    hiveId?: string;
+    notes?: string;
+  }) => api.post<{ id: string }>('/calendar', data),
+
+  update: (id: string, data: Partial<{
+    title: string;
+    description: string | null;
+    eventDate: string;
+    endDate: string | null;
+    eventType: string;
+    notes: string | null;
+    completed: boolean;
+  }>) => api.put(`/calendar/${id}`, data),
+
+  delete: (id: string) => api.delete(`/calendar/${id}`),
+};
+
 // Notifications API
 export const notificationsApi = {
   registerToken: (data: { token: string; platform: string }) =>

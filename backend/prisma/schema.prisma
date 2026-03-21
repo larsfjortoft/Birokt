@@ -36,6 +36,7 @@ model User {
   queenHiveLogs        QueenHiveLog[]
   pushTokens           PushToken[]
   notificationSettings NotificationSettings?
+  calendarEvents       CalendarEvent[]
 
   @@map("users")
 }
@@ -72,9 +73,10 @@ model Apiary {
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   // Relations
-  userApiaries UserApiary[]
-  hives        Hive[]
-  productions  Production[]
+  userApiaries   UserApiary[]
+  hives          Hive[]
+  productions    Production[]
+  calendarEvents CalendarEvent[]
 
   @@map("apiaries")
 }
@@ -125,14 +127,15 @@ model Hive {
   updatedAt          DateTime @updatedAt @map("updated_at")
 
   // Relations
-  apiary        Apiary         @relation(fields: [apiaryId], references: [id], onDelete: Cascade)
-  inspections   Inspection[]
-  photos        Photo[]
-  treatments    Treatment[]
-  feedings      Feeding[]
-  productions   Production[]
-  currentQueen  Queen[]        @relation("CurrentQueen")
-  queenHiveLogs QueenHiveLog[]
+  apiary         Apiary          @relation(fields: [apiaryId], references: [id], onDelete: Cascade)
+  inspections    Inspection[]
+  photos         Photo[]
+  treatments     Treatment[]
+  feedings       Feeding[]
+  productions    Production[]
+  currentQueen   Queen[]         @relation("CurrentQueen")
+  queenHiveLogs  QueenHiveLog[]
+  calendarEvents CalendarEvent[]
 
   @@map("hives")
 }
@@ -414,4 +417,31 @@ model QueenHiveLog {
   user  User  @relation(fields: [userId], references: [id])
 
   @@map("queen_hive_logs")
+}
+
+// =====================================================
+// CALENDAR EVENTS TABLE
+// =====================================================
+model CalendarEvent {
+  id          String    @id @default(uuid())
+  userId      String    @map("user_id")
+  title       String
+  description String?
+  eventDate   DateTime  @map("event_date")
+  endDate     DateTime? @map("end_date")
+  eventType   String    @map("event_type") // visit, feeding, queen_breeding, treatment, harvest, meeting, other
+  allDay      Boolean   @default(true) @map("all_day")
+  color       String?
+  apiaryId    String?   @map("apiary_id")
+  hiveId      String?   @map("hive_id")
+  notes       String?
+  completed   Boolean   @default(false)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  apiary Apiary? @relation(fields: [apiaryId], references: [id], onDelete: SetNull)
+  hive   Hive?   @relation(fields: [hiveId], references: [id], onDelete: SetNull)
+
+  @@map("calendar_events")
 }

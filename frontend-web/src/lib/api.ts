@@ -708,6 +708,72 @@ export const photosApi = {
   delete: (id: string) => api.delete(`/photos/${id}`),
 };
 
+// Calendar API
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  description?: string;
+  eventDate: string;
+  endDate?: string;
+  eventType: string;
+  allDay: boolean;
+  color?: string;
+  apiary?: { id: string; name: string } | null;
+  hive?: { id: string; hiveNumber: string; apiaryName: string } | null;
+  notes?: string;
+  completed: boolean;
+  createdAt: string;
+}
+
+export const calendarApi = {
+  list: (params?: Record<string, string>) =>
+    api.get<Array<CalendarEvent>>('/calendar', params),
+
+  get: (id: string) =>
+    api.get<CalendarEvent & { updatedAt: string }>(`/calendar/${id}`),
+
+  create: (data: {
+    title: string;
+    description?: string;
+    eventDate: string;
+    endDate?: string;
+    eventType: string;
+    allDay?: boolean;
+    color?: string;
+    apiaryId?: string;
+    hiveId?: string;
+    notes?: string;
+  }) => api.post('/calendar', data),
+
+  update: (id: string, data: Partial<{
+    title: string;
+    description: string | null;
+    eventDate: string;
+    endDate: string | null;
+    eventType: string;
+    allDay: boolean;
+    color: string | null;
+    apiaryId: string | null;
+    hiveId: string | null;
+    notes: string | null;
+    completed: boolean;
+  }>) => api.put(`/calendar/${id}`, data),
+
+  delete: (id: string) => api.delete(`/calendar/${id}`),
+
+  toggleComplete: async (id: string) => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+    const response = await fetch(`${API_URL}/calendar/${id}/complete`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+    });
+    return response.json();
+  },
+};
+
 // Weather API (YR.no/met.no integration)
 export interface WeatherData {
   temperature: number;

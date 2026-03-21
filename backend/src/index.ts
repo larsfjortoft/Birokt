@@ -19,6 +19,7 @@ const PORT = env.PORT;
 // Parse and trim CORS origins from environment
 const corsOrigins = env.CORS_ORIGINS?.split(',').map(o => o.trim()).filter(Boolean) || [
   'http://localhost:3001',
+  'http://localhost:3002',
   'http://localhost:19006',
 ];
 

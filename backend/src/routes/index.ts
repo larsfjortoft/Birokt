@@ -13,6 +13,7 @@ import weatherRoutes from './weather.routes.js';
 import queenRoutes from './queen.routes.js';
 import notificationRoutes from './notification.routes.js';
 import searchRoutes from './search.routes.js';
+import calendarRoutes from './calendar.routes.js';
 
 const router = Router();
 
@@ -30,6 +31,7 @@ router.use('/weather', weatherRoutes);
 router.use('/queens', queenRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/search', searchRoutes);
+router.use('/calendar', calendarRoutes);
 
 export { router as v1Routes };
 export default router;

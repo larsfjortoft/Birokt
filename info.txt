@@ -1,5 +1,5 @@
 ================================================================================
-  BIRØKT - Digital bigårdsforvaltning  |  v1.0  |  2026
+  BIRØKT - Digital bigårdsforvaltning  |  v1.1  |  2026
 ================================================================================
 
 BESKRIVELSE
@@ -147,6 +147,38 @@ Alternativ 2 – Port-forwarding i router:
     cd "F:\My AI\Projects\Birøkt\backend"
     npx prisma studio
     Åpner i nettleser på http://localhost:5555
+
+
+================================================================================
+  RASPBERRY PI (produksjonsserver)
+================================================================================
+
+Birøkt kjører på en Raspberry Pi 5 (aarch64) tilgjengelig via Tailscale.
+
+TILKOBLING
+----------
+  SSH:              ssh lars@10.0.0.16
+  Tailscale IP:     10.0.0.16
+  Installasjon:     ~/Birokt/
+
+ADRESSER (fra Pi)
+-----------------
+  Backend API:      http://10.0.0.16:3100/api/v1
+  Webgrensesnitt:   http://10.0.0.16:3001
+
+OPPDATERE TIL NY VERSJON
+--------------------------
+  ssh lars@10.0.0.16
+  cd ~/Birokt
+  git pull origin main
+  cd backend && npm install && npm run build && cd ..
+  cd frontend-web && npm install && npm run build && cd ..
+
+  # Restart tjenestene (finn PID med ps aux | grep node):
+  pkill -f "node dist/index.js"
+  pkill -f "next start"
+  cd ~/Birokt/backend && nohup node dist/index.js > /tmp/birokt-backend.log 2>&1 &
+  cd ~/Birokt/frontend-web && nohup npx next start -p 3001 > /tmp/birokt-web.log 2>&1 &
 
 
 ================================================================================
