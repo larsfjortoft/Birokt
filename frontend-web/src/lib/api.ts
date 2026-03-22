@@ -761,6 +761,10 @@ export const calendarApi = {
 
   delete: (id: string) => api.delete(`/calendar/${id}`),
 
+  sync: () => api.post<{ message: string; created: number; updated: number; deleted: number }>('/calendar/sync'),
+
+  syncStatus: () => api.get<{ enabled: boolean }>('/calendar/sync/status'),
+
   toggleComplete: async (id: string) => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
     const response = await fetch(`${API_URL}/calendar/${id}/complete`, {

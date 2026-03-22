@@ -423,21 +423,22 @@ model QueenHiveLog {
 // CALENDAR EVENTS TABLE
 // =====================================================
 model CalendarEvent {
-  id          String    @id @default(uuid())
-  userId      String    @map("user_id")
-  title       String
-  description String?
-  eventDate   DateTime  @map("event_date")
-  endDate     DateTime? @map("end_date")
-  eventType   String    @map("event_type") // visit, feeding, queen_breeding, treatment, harvest, meeting, other
-  allDay      Boolean   @default(true) @map("all_day")
-  color       String?
-  apiaryId    String?   @map("apiary_id")
-  hiveId      String?   @map("hive_id")
-  notes       String?
-  completed   Boolean   @default(false)
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+  id            String    @id @default(uuid())
+  userId        String    @map("user_id")
+  title         String
+  description   String?
+  eventDate     DateTime  @map("event_date")
+  endDate       DateTime? @map("end_date")
+  eventType     String    @map("event_type") // visit, feeding, queen_breeding, treatment, harvest, meeting, other
+  allDay        Boolean   @default(true) @map("all_day")
+  color         String?
+  apiaryId      String?   @map("apiary_id")
+  hiveId        String?   @map("hive_id")
+  notes         String?
+  completed     Boolean   @default(false)
+  googleEventId String?   @unique @map("google_event_id")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
 
   user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   apiary Apiary? @relation(fields: [apiaryId], references: [id], onDelete: SetNull)

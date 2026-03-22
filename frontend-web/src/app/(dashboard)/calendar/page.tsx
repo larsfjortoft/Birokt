@@ -18,6 +18,7 @@ import {
   Circle,
   MapPin,
   Box,
+  RefreshCw,
 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { cn } from '@/lib/utils';
@@ -110,6 +111,19 @@ export default function CalendarPage() {
     },
   });
 
+  const syncMutation = useMutation({
+    mutationFn: () => calendarApi.sync(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['calendar'] });
+    },
+  });
+
+  const { data: syncStatusResponse } = useQuery({
+    queryKey: ['calendar-sync-status'],
+    queryFn: () => calendarApi.syncStatus(),
+  });
+  const googleSyncEnabled = (syncStatusResponse?.data as { enabled: boolean } | undefined)?.enabled ?? false;
+
   const events = (eventsResponse?.data || []) as CalendarEvent[];
   const apiaries = ((apiariesResponse?.data || []) as unknown as Apiary[]);
   const hives = ((hivesResponse?.data || []) as unknown as Hive[]);
@@ -156,10 +170,22 @@ export default function CalendarPage() {
           <h1 className="text-2xl font-bold text-gray-900">Kalender</h1>
           <p className="text-gray-500">Planlegg aktiviteter og hendelser</p>
         </div>
-        <Button onClick={() => setShowCreateModal(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Ny hendelse
-        </Button>
+        <div className="flex items-center gap-2">
+          {googleSyncEnabled && (
+            <Button
+              variant="outline"
+              onClick={() => syncMutation.mutate()}
+              disabled={syncMutation.isPending}
+            >
+              <RefreshCw className={cn('w-4 h-4 mr-2', syncMutation.isPending && 'animate-spin')} />
+              {syncMutation.isPending ? 'Synkroniserer...' : 'Synk Google'}
+            </Button>
+          )}
+          <Button onClick={() => setShowCreateModal(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Ny hendelse
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}

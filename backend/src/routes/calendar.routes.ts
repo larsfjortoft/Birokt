@@ -4,6 +4,7 @@ import { validateBody, validateQuery, validateParams } from '../middleware/valid
 import { authenticate } from '../middleware/auth.js';
 import { sendSuccess, sendError, ErrorCodes, calculatePagination } from '../utils/response.js';
 import prisma from '../utils/prisma.js';
+import { pushToGoogle, deleteFromGoogle, pullFromGoogle, isEnabled as isGoogleEnabled } from '../services/googleCalendar.js';
 
 const router = Router();
 
@@ -73,6 +74,32 @@ async function checkHiveAccess(userId: string, hiveId: string): Promise<boolean>
 
   return checkApiaryAccess(userId, hive.apiaryId);
 }
+
+// GET /calendar/sync/status - Check if Google Calendar is configured
+router.get('/sync/status', async (_req: Request, res: Response) => {
+  sendSuccess(res, { enabled: isGoogleEnabled() });
+});
+
+// POST /calendar/sync - Sync with Google Calendar (pull from Google)
+router.post('/sync', async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+
+    if (!isGoogleEnabled()) {
+      sendError(res, ErrorCodes.INTERNAL_ERROR, 'Google Calendar integration is not configured', 400);
+      return;
+    }
+
+    const stats = await pullFromGoogle(userId);
+    sendSuccess(res, {
+      message: 'Synkronisering fullført',
+      ...stats,
+    });
+  } catch (error) {
+    console.error('Calendar sync error:', error);
+    sendError(res, ErrorCodes.INTERNAL_ERROR, 'Failed to sync with Google Calendar', 500);
+  }
+});
 
 // GET /calendar - List events
 router.get('/', validateQuery(listEventsSchema), async (req: Request, res: Response) => {
@@ -182,6 +209,9 @@ router.post('/', validateBody(createEventSchema), async (req: Request, res: Resp
         notes,
       },
     });
+
+    // Sync to Google Calendar (fire-and-forget)
+    pushToGoogle(event.id).catch(err => console.error('Google sync error:', err));
 
     sendSuccess(res, {
       id: event.id,
@@ -299,6 +329,9 @@ router.put('/:id', validateParams(idParamSchema), validateBody(updateEventSchema
       },
     });
 
+    // Sync to Google Calendar (fire-and-forget)
+    pushToGoogle(event.id).catch(err => console.error('Google sync error:', err));
+
     sendSuccess(res, { id: event.id, updatedAt: event.updatedAt });
   } catch (error) {
     console.error('Update calendar event error:', error);
@@ -328,6 +361,9 @@ router.patch('/:id/complete', validateParams(idParamSchema), async (req: Request
       data: { completed: !existing.completed },
     });
 
+    // Sync to Google Calendar (fire-and-forget)
+    pushToGoogle(event.id).catch(err => console.error('Google sync error:', err));
+
     sendSuccess(res, { id: event.id, completed: event.completed, updatedAt: event.updatedAt });
   } catch (error) {
     console.error('Toggle calendar event complete error:', error);
@@ -350,6 +386,11 @@ router.delete('/:id', validateParams(idParamSchema), async (req: Request, res: R
     if (event.userId !== userId) {
       sendError(res, ErrorCodes.FORBIDDEN, 'You do not have access to this event', 403);
       return;
+    }
+
+    // Delete from Google Calendar
+    if (event.googleEventId) {
+      deleteFromGoogle(event.googleEventId).catch(err => console.error('Google delete error:', err));
     }
 
     await prisma.calendarEvent.delete({ where: { id } });
