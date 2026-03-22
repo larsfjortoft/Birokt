@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { calendarApi, apiariesApi, hivesApi, CalendarEvent } from '@/lib/api';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -50,6 +50,24 @@ function getEventTypeLabel(type: string) {
 
 function getEventTypeColor(type: string) {
   return eventTypes.find((t) => t.value === type)?.color || '#6b7280';
+}
+
+// Convert ISO date (YYYY-MM-DD) to Norwegian display (dd.mm.yyyy)
+function isoToNorwegian(iso: string): string {
+  if (!iso) return '';
+  const [y, m, d] = iso.split('-');
+  return `${d}.${m}.${y}`;
+}
+
+// Convert Norwegian display (dd.mm.yyyy) to ISO (YYYY-MM-DD)
+function norwegianToIso(norwegian: string): string {
+  if (!norwegian) return '';
+  const cleaned = norwegian.replace(/[/\s]/g, '.');
+  const parts = cleaned.split('.');
+  if (parts.length !== 3) return norwegian;
+  const [d, m, y] = parts;
+  if (!d || !m || !y || y.length !== 4) return norwegian;
+  return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
 }
 
 function getDaysInMonth(year: number, month: number) {
@@ -558,10 +576,11 @@ function CreateEventModal({
   defaultDate?: string;
 }) {
   const queryClient = useQueryClient();
+  const initialDate = defaultDate || new Date().toISOString().slice(0, 10);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    eventDate: defaultDate || new Date().toISOString().slice(0, 10),
+    eventDate: initialDate,
     endDate: '',
     eventType: 'visit',
     apiaryId: '',
@@ -569,8 +588,12 @@ function CreateEventModal({
     notes: '',
   });
 
-  // Update default date when it changes
-  const effectiveDate = defaultDate || new Date().toISOString().slice(0, 10);
+  // Update eventDate when defaultDate changes (e.g. user clicks a different day)
+  useEffect(() => {
+    if (defaultDate) {
+      setFormData((prev) => ({ ...prev, eventDate: defaultDate }));
+    }
+  }, [defaultDate]);
 
   const createMutation = useMutation({
     mutationFn: (data: Parameters<typeof calendarApi.create>[0]) =>
@@ -581,7 +604,7 @@ function CreateEventModal({
       setFormData({
         title: '',
         description: '',
-        eventDate: new Date().toISOString().slice(0, 10),
+        eventDate: defaultDate || new Date().toISOString().slice(0, 10),
         endDate: '',
         eventType: 'visit',
         apiaryId: '',
@@ -649,9 +672,14 @@ function CreateEventModal({
               Dato *
             </label>
             <input
-              type="date"
-              value={formData.eventDate || effectiveDate}
-              onChange={(e) => setFormData((prev) => ({ ...prev, eventDate: e.target.value }))}
+              type="text"
+              value={isoToNorwegian(formData.eventDate)}
+              onChange={(e) => {
+                const val = e.target.value;
+                const iso = norwegianToIso(val);
+                setFormData((prev) => ({ ...prev, eventDate: iso }));
+              }}
+              placeholder="dd.mm.yyyy"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-honey-500"
               required
             />
@@ -661,9 +689,14 @@ function CreateEventModal({
               Sluttdato
             </label>
             <input
-              type="date"
-              value={formData.endDate}
-              onChange={(e) => setFormData((prev) => ({ ...prev, endDate: e.target.value }))}
+              type="text"
+              value={isoToNorwegian(formData.endDate)}
+              onChange={(e) => {
+                const val = e.target.value;
+                const iso = norwegianToIso(val);
+                setFormData((prev) => ({ ...prev, endDate: iso }));
+              }}
+              placeholder="dd.mm.yyyy"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-honey-500"
             />
           </div>
