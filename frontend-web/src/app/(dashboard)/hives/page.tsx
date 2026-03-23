@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { hivesApi, apiariesApi } from '@/lib/api';
 import { Card, CardContent } from '@/components/ui/card';
@@ -10,14 +10,20 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Box, X } from 'lucide-react';
 import Link from 'next/link';
-import { cn, formatDate, getStrengthColor, getStatusColor } from '@/lib/utils';
+import { cn, formatDate, getHealthColor, getStrengthColor, getStatusColor } from '@/lib/utils';
 import toast from 'react-hot-toast';
 import { SkeletonCard } from '@/components/ui/skeleton';
 
 export default function HivesPage() {
+  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const preselectedApiaryId = searchParams.get('apiaryId');
+  const apiaryIdFilter = searchParams.get('apiaryId') || '';
+  const statusFilter = searchParams.get('status') || '';
+  const strengthFilter = searchParams.get('strength') || '';
+  const healthFilter = searchParams.get('healthStatus') || '';
 
   const [showCreateModal, setShowCreateModal] = useState(!!preselectedApiaryId);
   const [newHive, setNewHive] = useState({
@@ -25,16 +31,28 @@ export default function HivesPage() {
     hiveNumber: '',
     hiveType: 'langstroth',
   });
-  const [filters, setFilters] = useState({
-    apiaryId: '',
-    status: '',
-  });
+  const updateFilter = (key: 'apiaryId' | 'status' | 'strength' | 'healthStatus', value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value) {
+      params.set(key, value);
+    } else {
+      params.delete(key);
+    }
+
+    router.replace(params.toString() ? `${pathname}?${params.toString()}` : pathname);
+  };
+
+  const clearFilters = () => {
+    router.replace(pathname);
+  };
 
   const { data: hivesResponse, isLoading } = useQuery({
-    queryKey: ['hives', filters],
+    queryKey: ['hives', apiaryIdFilter, statusFilter, strengthFilter, healthFilter],
     queryFn: () => hivesApi.list({
-      ...(filters.apiaryId && { apiaryId: filters.apiaryId }),
-      ...(filters.status && { status: filters.status }),
+      ...(apiaryIdFilter && { apiaryId: apiaryIdFilter }),
+      ...(statusFilter && { status: statusFilter }),
+      ...(strengthFilter && { strength: strengthFilter }),
+      ...(healthFilter && { healthStatus: healthFilter }),
     }),
   });
 
@@ -72,6 +90,7 @@ export default function HivesPage() {
 
   const hives = hivesResponse?.data || [];
   const apiaries = apiariesResponse?.data || [];
+  const hasActiveFilters = Boolean(apiaryIdFilter || statusFilter || strengthFilter || healthFilter);
 
   return (
     <div className="space-y-6">
@@ -91,8 +110,8 @@ export default function HivesPage() {
         <CardContent className="pt-4">
           <div className="flex flex-wrap gap-4">
             <select
-              value={filters.apiaryId}
-              onChange={(e) => setFilters({ ...filters, apiaryId: e.target.value })}
+              value={apiaryIdFilter}
+              onChange={(e) => updateFilter('apiaryId', e.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-honey-500"
             >
               <option value="">Alle bigårder</option>
@@ -101,8 +120,8 @@ export default function HivesPage() {
               ))}
             </select>
             <select
-              value={filters.status}
-              onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+              value={statusFilter}
+              onChange={(e) => updateFilter('status', e.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-honey-500"
             >
               <option value="">Alle statuser</option>
@@ -110,6 +129,31 @@ export default function HivesPage() {
               <option value="nuc">Avlegger</option>
               <option value="inactive">Inaktiv</option>
             </select>
+            <select
+              value={strengthFilter}
+              onChange={(e) => updateFilter('strength', e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-honey-500"
+            >
+              <option value="">All styrke</option>
+              <option value="strong">Sterk</option>
+              <option value="medium">Medium</option>
+              <option value="weak">Svak</option>
+            </select>
+            <select
+              value={healthFilter}
+              onChange={(e) => updateFilter('healthStatus', e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-honey-500"
+            >
+              <option value="">All helsetilstand</option>
+              <option value="healthy">Frisk</option>
+              <option value="warning">Advarsel</option>
+              <option value="critical">Kritisk</option>
+            </select>
+            {hasActiveFilters && (
+              <Button variant="outline" onClick={clearFilters}>
+                Nullstill filter
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -138,7 +182,7 @@ export default function HivesPage() {
             <Link key={hive.id} href={`/hives/${hive.id}`}>
               <Card className="h-full hover:border-honey-300 hover:shadow-md transition-all cursor-pointer">
                 <CardContent className="pt-6">
-                  <div className="flex items-start justify-between mb-4">
+                  <div className="mb-4 flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3">
                       <div className="w-12 h-12 bg-honey-100 rounded-lg flex items-center justify-center">
                         <span className="text-honey-700 font-bold">{hive.hiveNumber}</span>
@@ -147,6 +191,22 @@ export default function HivesPage() {
                         <h3 className="font-semibold text-gray-900">Kube {hive.hiveNumber}</h3>
                         <p className="text-sm text-gray-500">{hive.apiary.name}</p>
                       </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs uppercase tracking-wide text-gray-400">Helsetilstand</p>
+                      {hive.lastInspection?.healthStatus ? (
+                        <span className={cn('mt-1 inline-block rounded px-2 py-1 text-xs font-medium', getHealthColor(hive.lastInspection.healthStatus))}>
+                          {hive.lastInspection.healthStatus === 'healthy'
+                            ? 'Frisk'
+                            : hive.lastInspection.healthStatus === 'warning'
+                              ? 'Advarsel'
+                              : 'Kritisk'}
+                        </span>
+                      ) : (
+                        <span className="mt-1 inline-block rounded bg-gray-100 px-2 py-1 text-xs font-medium text-gray-500">
+                          Ikke vurdert
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -161,18 +221,31 @@ export default function HivesPage() {
                     )}
                   </div>
 
-                  <div className="text-sm text-gray-600 space-y-1">
+                  <div className="grid grid-cols-2 gap-3 rounded-lg bg-gray-50 p-3 text-sm text-gray-600">
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-gray-400">Kasser</p>
+                      <p className="mt-1 font-medium text-gray-900">
+                        {hive.boxCount} {hive.boxCount === 1 ? 'kasse' : 'kasser'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-gray-400">Inspeksjoner</p>
+                      <p className="mt-1 font-medium text-gray-900">{hive.stats.totalInspections}</p>
+                    </div>
                     {hive.queen?.year && (
-                      <p>Dronning: {hive.queen.year} {hive.queen.race && `(${hive.queen.race})`}</p>
+                      <div className="col-span-2">
+                        <p className="text-xs uppercase tracking-wide text-gray-400">Dronning</p>
+                        <p className="mt-1">
+                          {hive.queen.year} {hive.queen.race && `(${hive.queen.race})`}
+                        </p>
+                      </div>
                     )}
                     {hive.lastInspection && (
-                      <p>Sist inspisert: {formatDate(hive.lastInspection.date)}</p>
+                      <div className="col-span-2">
+                        <p className="text-xs uppercase tracking-wide text-gray-400">Sist inspisert</p>
+                        <p className="mt-1">{formatDate(hive.lastInspection.date)}</p>
+                      </div>
                     )}
-                  </div>
-
-                  <div className="flex items-center justify-between pt-4 mt-4 border-t border-gray-100 text-xs text-gray-500">
-                    <span>{hive.boxCount} {hive.boxCount === 1 ? 'kasse' : 'kasser'}</span>
-                    <span>{hive.stats.totalInspections} inspeksjoner</span>
                   </div>
                 </CardContent>
               </Card>

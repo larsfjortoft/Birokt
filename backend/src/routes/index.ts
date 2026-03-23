@@ -14,6 +14,7 @@ import queenRoutes from './queen.routes.js';
 import notificationRoutes from './notification.routes.js';
 import searchRoutes from './search.routes.js';
 import calendarRoutes from './calendar.routes.js';
+import journalRoutes from './journal.routes.js';
 
 const router = Router();
 
@@ -32,6 +33,7 @@ router.use('/queens', queenRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/search', searchRoutes);
 router.use('/calendar', calendarRoutes);
+router.use('/journal', journalRoutes);
 
 export { router as v1Routes };
 export default router;

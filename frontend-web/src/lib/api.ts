@@ -778,6 +778,50 @@ export const calendarApi = {
   },
 };
 
+// Journal API
+export interface JournalEntry {
+  id: string;
+  entryDate: string;
+  title?: string;
+  content: string;
+  category: string;
+  tags: string[];
+  mood?: string;
+  temperature?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const journalApi = {
+  list: (params?: Record<string, string>) =>
+    api.get<Array<JournalEntry>>('/journal', params),
+
+  get: (id: string) =>
+    api.get<JournalEntry>(`/journal/${id}`),
+
+  create: (data: {
+    entryDate: string;
+    title?: string;
+    content: string;
+    category?: string;
+    tags?: string[];
+    mood?: string;
+    temperature?: number;
+  }) => api.post<JournalEntry>('/journal', data),
+
+  update: (id: string, data: Partial<{
+    entryDate: string;
+    title: string | null;
+    content: string;
+    category: string;
+    tags: string[];
+    mood: string | null;
+    temperature: number | null;
+  }>) => api.put<JournalEntry>(`/journal/${id}`, data),
+
+  delete: (id: string) => api.delete(`/journal/${id}`),
+};
+
 // Weather API (YR.no/met.no integration)
 export interface WeatherData {
   temperature: number;

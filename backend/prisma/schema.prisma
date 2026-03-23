@@ -37,6 +37,7 @@ model User {
   pushTokens           PushToken[]
   notificationSettings NotificationSettings?
   calendarEvents       CalendarEvent[]
+  journalEntries       JournalEntry[]
 
   @@map("users")
 }
@@ -445,4 +446,25 @@ model CalendarEvent {
   hive   Hive?   @relation(fields: [hiveId], references: [id], onDelete: SetNull)
 
   @@map("calendar_events")
+}
+
+// =====================================================
+// JOURNAL ENTRIES TABLE
+// =====================================================
+model JournalEntry {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  entryDate   DateTime @map("entry_date")
+  title       String?
+  content     String
+  category    String   @default("general") // general, weather, bloom, bees, harvest, observation, other
+  tags        String   @default("[]") // JSON array stored as string
+  mood        String?  // positive, neutral, negative
+  temperature Float?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("journal_entries")
 }

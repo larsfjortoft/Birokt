@@ -72,6 +72,7 @@ export default function HiveDetailPage() {
     notes?: string;
     createdAt: string;
   };
+  const currentHealthStatus = hive.inspections[0]?.healthStatus;
 
   return (
     <div className="space-y-6">
@@ -104,7 +105,7 @@ export default function HiveDetailPage() {
       </div>
 
       {/* Quick stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Card>
           <CardContent className="pt-4">
             <p className="text-sm text-gray-500">Status</p>
@@ -122,6 +123,18 @@ export default function HiveDetailPage() {
             {hive.strength ? (
               <span className={`inline-block px-2 py-1 mt-1 rounded text-xs font-medium ${getStrengthColor(hive.strength)}`}>
                 {hive.strength === 'strong' ? 'Sterk' : hive.strength === 'medium' ? 'Medium' : 'Svak'}
+              </span>
+            ) : (
+              <p className="text-gray-400 text-sm mt-1">Ikke vurdert</p>
+            )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-sm text-gray-500">Helsetilstand</p>
+            {currentHealthStatus ? (
+              <span className={`inline-block px-2 py-1 mt-1 rounded text-xs font-medium ${getHealthColor(currentHealthStatus)}`}>
+                {currentHealthStatus === 'healthy' ? 'Frisk' : currentHealthStatus === 'warning' ? 'Advarsel' : 'Kritisk'}
               </span>
             ) : (
               <p className="text-gray-400 text-sm mt-1">Ikke vurdert</p>

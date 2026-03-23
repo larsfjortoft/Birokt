@@ -27,6 +27,23 @@ function getDayName(dateStr: string): string {
   return date.toLocaleDateString('nb-NO', { weekday: 'short' });
 }
 
+function OverviewLink({
+  href,
+  children,
+}: {
+  href: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      className="flex items-center justify-between rounded-lg px-3 py-2 transition-colors hover:bg-gray-50"
+    >
+      {children}
+    </Link>
+  );
+}
+
 export default function DashboardPage() {
   const { data: statsResponse, isLoading: statsLoading } = useQuery({
     queryKey: ['stats', 'overview'],
@@ -162,27 +179,27 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
+              <OverviewLink href="/hives?strength=strong">
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 bg-green-500 rounded-full"></div>
                   <span className="text-sm text-gray-600">Sterke</span>
                 </div>
                 <span className="font-semibold">{stats?.hives.byStrength.strong || 0}</span>
-              </div>
-              <div className="flex items-center justify-between">
+              </OverviewLink>
+              <OverviewLink href="/hives?strength=medium">
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
                   <span className="text-sm text-gray-600">Medium</span>
                 </div>
                 <span className="font-semibold">{stats?.hives.byStrength.medium || 0}</span>
-              </div>
-              <div className="flex items-center justify-between">
+              </OverviewLink>
+              <OverviewLink href="/hives?strength=weak">
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 bg-red-500 rounded-full"></div>
                   <span className="text-sm text-gray-600">Svake</span>
                 </div>
                 <span className="font-semibold">{stats?.hives.byStrength.weak || 0}</span>
-              </div>
+              </OverviewLink>
             </div>
           </CardContent>
         </Card>
@@ -193,24 +210,24 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
+              <OverviewLink href="/hives?healthStatus=healthy">
                 <div className="flex items-center gap-2">
                   <Badge variant="success">Frisk</Badge>
                 </div>
                 <span className="font-semibold">{stats?.hives.byHealth.healthy || 0}</span>
-              </div>
-              <div className="flex items-center justify-between">
+              </OverviewLink>
+              <OverviewLink href="/hives?healthStatus=warning">
                 <div className="flex items-center gap-2">
                   <Badge variant="warning">Advarsel</Badge>
                 </div>
                 <span className="font-semibold">{stats?.hives.byHealth.warning || 0}</span>
-              </div>
-              <div className="flex items-center justify-between">
+              </OverviewLink>
+              <OverviewLink href="/hives?healthStatus=critical">
                 <div className="flex items-center gap-2">
                   <Badge variant="danger">Kritisk</Badge>
                 </div>
                 <span className="font-semibold">{stats?.hives.byHealth.critical || 0}</span>
-              </div>
+              </OverviewLink>
             </div>
           </CardContent>
         </Card>

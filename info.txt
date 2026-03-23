@@ -166,19 +166,26 @@ ADRESSER (fra Pi)
   Backend API:      http://10.0.0.16:3100/api/v1
   Webgrensesnitt:   http://10.0.0.16:3001
 
+TJENESTER (systemd)
+-------------------
+  Birøkt kjører som systemd-tjenester som starter automatisk ved boot.
+
+  sudo systemctl status birokt-api     – Sjekk backend-status
+  sudo systemctl status birokt-web     – Sjekk web-status
+  sudo systemctl restart birokt-api    – Restart backend
+  sudo systemctl restart birokt-web    – Restart web
+  sudo journalctl -u birokt-api -f     – Følg backend-logger
+
+
 OPPDATERE TIL NY VERSJON
 --------------------------
   ssh lars@10.0.0.16
   cd ~/Birokt
   git pull origin main
   cd backend && npm install && npm run build && cd ..
-  cd frontend-web && npm install && npm run build && cd ..
-
-  # Restart tjenestene (finn PID med ps aux | grep node):
-  pkill -f "node dist/index.js"
-  pkill -f "next start"
-  cd ~/Birokt/backend && nohup node dist/index.js > /tmp/birokt-backend.log 2>&1 &
-  cd ~/Birokt/frontend-web && nohup npx next start -p 3001 > /tmp/birokt-web.log 2>&1 &
+  cd frontend-web && npm install --legacy-peer-deps && npm run build && cd ..
+  sudo systemctl restart birokt-api
+  sudo systemctl restart birokt-web
 
 
 ================================================================================
