@@ -15,18 +15,18 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 const CATEGORIES = [
   { value: 'general', label: 'Generelt', color: 'bg-gray-100 text-gray-700' },
-  { value: 'weather', label: 'V\u00e6r', color: 'bg-blue-100 text-blue-700' },
+  { value: 'weather', label: 'Vær', color: 'bg-blue-100 text-blue-700' },
   { value: 'bloom', label: 'Blomstring', color: 'bg-pink-100 text-pink-700' },
   { value: 'bees', label: 'Bier', color: 'bg-amber-100 text-amber-700' },
-  { value: 'harvest', label: 'H\u00f8sting', color: 'bg-green-100 text-green-700' },
+  { value: 'harvest', label: 'Høsting', color: 'bg-green-100 text-green-700' },
   { value: 'observation', label: 'Observasjon', color: 'bg-purple-100 text-purple-700' },
   { value: 'other', label: 'Annet', color: 'bg-slate-100 text-slate-700' },
 ];
 
 const MOODS = [
-  { value: 'positive', label: 'Positivt', emoji: '\u2600\ufe0f' },
-  { value: 'neutral', label: 'N\u00f8ytralt', emoji: '\u26c5' },
-  { value: 'negative', label: 'Negativt', emoji: '\ud83c\udf27\ufe0f' },
+  { value: 'positive', label: 'Positivt', emoji: '☀️' },
+  { value: 'neutral', label: 'Nøytralt', emoji: '⛅' },
+  { value: 'negative', label: 'Negativt', emoji: '🌧️' },
 ];
 
 function getCategoryInfo(value: string) {
@@ -206,7 +206,7 @@ export default function JournalPage() {
             <form onSubmit={handleSearch} className="flex-1 flex gap-2">
               <div className="flex-1">
                 <Input
-                  placeholder="S\u00f8k i journal..."
+                  placeholder="Søk i journal..."
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
                 />
@@ -246,13 +246,13 @@ export default function JournalPage() {
         <Card>
           <CardContent className="p-12 text-center">
             <div className="text-5xl mb-4">📓</div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Ingen journalinnlegg enn\u00e5</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Ingen journalinnlegg ennå</h3>
             <p className="text-gray-500 mb-4">
-              Begynn \u00e5 notere observasjoner, v\u00e6r, blomstring og andre hendelser gjennom sesongen.
+              Begynn å notere observasjoner, vær, blomstring og andre hendelser gjennom sesongen.
             </p>
             <Button onClick={openCreateModal}>
               <Plus className="w-4 h-4 mr-2" />
-              Skriv f\u00f8rste innlegg
+              Skriv første innlegg
             </Button>
           </CardContent>
         </Card>
@@ -283,7 +283,7 @@ export default function JournalPage() {
                         {entry.temperature !== undefined && entry.temperature !== null && (
                           <span className="text-sm text-gray-500 flex items-center gap-0.5">
                             <Thermometer className="w-3.5 h-3.5" />
-                            {entry.temperature}\u00b0C
+                            {entry.temperature}°C
                           </span>
                         )}
                       </div>
@@ -362,7 +362,7 @@ export default function JournalPage() {
               label="Tittel (valgfritt)"
               value={formTitle}
               onChange={(e) => setFormTitle(e.target.value)}
-              placeholder="F.eks. F\u00f8rste v\u00e5rblomster"
+              placeholder="F.eks. Første vårblomster"
             />
           </div>
 
@@ -407,7 +407,7 @@ export default function JournalPage() {
             </div>
 
             <Input
-              label="Temperatur (\u00b0C)"
+              label="Temperatur (°C)"
               type="number"
               step="0.1"
               value={formTemperature}
@@ -420,7 +420,7 @@ export default function JournalPage() {
             label="Tagger (kommaseparert)"
             value={formTags}
             onChange={(e) => setFormTags(e.target.value)}
-            placeholder="F.eks. hassel, pollen, v\u00e5rtegn"
+            placeholder="F.eks. hassel, pollen, vårtegn"
           />
 
           <div className="flex justify-end gap-3 pt-2">
@@ -439,7 +439,7 @@ export default function JournalPage() {
 
       {/* Delete confirmation modal */}
       <Modal isOpen={!!deleteId} onClose={() => setDeleteId(null)} title="Slett innlegg" size="sm">
-        <p className="text-gray-600 mb-6">Er du sikker p\u00e5 at du vil slette dette journalinnlegget? Dette kan ikke angres.</p>
+        <p className="text-gray-600 mb-6">Er du sikker på at du vil slette dette journalinnlegget? Dette kan ikke angres.</p>
         <div className="flex justify-end gap-3">
           <Button variant="secondary" onClick={() => setDeleteId(null)}>
             Avbryt
