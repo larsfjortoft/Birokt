@@ -73,10 +73,11 @@ async function checkApiaryAccess(userId: string, apiaryId: string): Promise<bool
 router.get('/', validateQuery(listHivesSchema), async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
-    const { apiaryId, status, strength, sortBy, order, page, perPage } = req.query as unknown as {
+    const { apiaryId, status, strength, healthStatus, sortBy, order, page, perPage } = req.query as unknown as {
       apiaryId?: string;
       status?: string;
       strength?: string;
+      healthStatus?: string;
       sortBy: string;
       order: string;
       page: number;
@@ -101,15 +102,12 @@ router.get('/', validateQuery(listHivesSchema), async (req: Request, res: Respon
       ...(strength && { strength }),
     };
 
-    // Count total
-    const total = await prisma.hive.count({ where });
-
     // Build orderBy
     const orderByField = sortBy === 'hive_number' ? 'hiveNumber' :
                          sortBy === 'last_inspection' ? 'updatedAt' :
                          sortBy === 'created_at' ? 'createdAt' : 'strength';
 
-    const hives = await prisma.hive.findMany({
+    let hives = await prisma.hive.findMany({
       where,
       include: {
         apiary: {
@@ -136,9 +134,19 @@ router.get('/', validateQuery(listHivesSchema), async (req: Request, res: Respon
         },
       },
       orderBy: { [orderByField]: order },
-      skip: (page - 1) * perPage,
-      take: perPage,
     });
+
+    // Filter by healthStatus from latest inspection (post-query)
+    if (healthStatus) {
+      hives = hives.filter(hive =>
+        hive.inspections[0]?.healthStatus === healthStatus
+      );
+    }
+
+    const total = hives.length;
+
+    // Apply pagination after filtering
+    hives = hives.slice((page - 1) * perPage, page * perPage);
 
     const result = hives.map(hive => ({
       id: hive.id,
