@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-06-21 — Hermes-agent API
+
+- La til agentkatalog og Hermes-skill for å styre Birøkt via det samme API-et som web- og mobilappen bruker.
+- Hermes kan oppdage bigårder, kuber, inspeksjoner, behandlinger, fôring, høsting, dronninger, kalender, journal, rapporter og søk.
+
 ## 2026-06-20 — QR- og 3D-kubeetiketter
 
 - Kubekortet kan laste ned en printklar QR-etikett (SVG) med kubenavn.

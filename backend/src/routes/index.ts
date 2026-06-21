@@ -15,6 +15,7 @@ import notificationRoutes from './notification.routes.js';
 import searchRoutes from './search.routes.js';
 import calendarRoutes from './calendar.routes.js';
 import journalRoutes from './journal.routes.js';
+import agentRoutes from './agent.routes.js';
 
 const router = Router();
 
@@ -34,6 +35,7 @@ router.use('/notifications', notificationRoutes);
 router.use('/search', searchRoutes);
 router.use('/calendar', calendarRoutes);
 router.use('/journal', journalRoutes);
+router.use('/agent', agentRoutes);
 
 export { router as v1Routes };
 export default router;
