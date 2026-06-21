@@ -16,6 +16,7 @@ interface AuthState {
   register: (email: string, password: string, name: string) => Promise<void>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
+  updateProfile: (data: { name?: string; phone?: string | null }) => Promise<void>;
 }
 
 const localUser: User = {
@@ -25,9 +26,9 @@ const localUser: User = {
 };
 
 export const useAuthStore = create<AuthState>((set) => ({
-  user: localUser,
-  isLoading: false,
-  isAuthenticated: true,
+  user: null,
+  isLoading: true,
+  isAuthenticated: false,
 
   login: async (email, password) => {
     set({ isLoading: true });
@@ -67,11 +68,30 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   logout: async () => {
     await api.clearTokens();
-    set({ user: localUser, isAuthenticated: true, isLoading: false });
+    set({ user: null, isAuthenticated: false, isLoading: false });
   },
 
   checkAuth: async () => {
-    await api.clearTokens();
-    set({ isLoading: false, isAuthenticated: true, user: localUser });
+    set({ isLoading: true });
+    try {
+      const response = await authApi.me();
+      if (response.data) {
+        set({ user: response.data, isAuthenticated: true, isLoading: false });
+        return;
+      }
+    } catch {
+      await api.clearTokens();
+    }
+    set({ user: null, isAuthenticated: false, isLoading: false });
+  },
+
+  updateProfile: async (data) => {
+    const response = await authApi.updateProfile(data);
+    const updatedUser = response.data;
+    if (updatedUser) {
+      set((state) => ({
+        user: state.user ? { ...state.user, ...updatedUser, phone: updatedUser.phone ?? undefined } : state.user,
+      }));
+    }
   },
 }));

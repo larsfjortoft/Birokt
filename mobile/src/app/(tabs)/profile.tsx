@@ -28,6 +28,7 @@ export default function ProfileScreen() {
       <View style={styles.menu}>
         <TouchableOpacity
           style={styles.menuItem}
+          onPress={() => router.push('/profile/edit')}
           accessibilityRole="button"
           accessibilityLabel="Rediger profil"
         >
@@ -53,6 +54,7 @@ export default function ProfileScreen() {
 
         <TouchableOpacity
           style={styles.menuItem}
+          onPress={() => router.push('/settings')}
           accessibilityRole="button"
           accessibilityLabel="Innstillinger"
         >
@@ -65,6 +67,7 @@ export default function ProfileScreen() {
 
         <TouchableOpacity
           style={styles.menuItem}
+          onPress={() => router.push('/help')}
           accessibilityRole="button"
           accessibilityLabel="Hjelp"
         >

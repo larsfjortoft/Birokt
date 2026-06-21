@@ -1,7 +1,9 @@
 import * as SecureStore from 'expo-secure-store';
 import { getFilename } from './imageUtils';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
+// The personal installation always uses the API running on the Raspberry Pi.
+// This prevents a release build from picking an emulator-only address.
+const API_URL = 'http://10.0.0.16:3100/api/v1';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -216,6 +218,14 @@ export const authApi = {
       name: string;
       phone?: string;
     }>('/auth/me'),
+
+  updateProfile: (data: { name?: string; phone?: string | null }) =>
+    api.put<{
+      id: string;
+      email: string;
+      name: string;
+      phone?: string | null;
+    }>('/auth/me', data),
 
   logout: () => api.post('/auth/logout'),
 };

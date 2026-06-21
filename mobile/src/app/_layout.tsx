@@ -158,6 +158,9 @@ export default function RootLayout() {
               headerBackTitle: 'Tilbake',
             }}
           />
+          <Stack.Screen name="settings/index" options={{ title: 'Innstillinger', headerBackTitle: 'Tilbake' }} />
+          <Stack.Screen name="profile/edit" options={{ title: 'Rediger profil', headerBackTitle: 'Tilbake' }} />
+          <Stack.Screen name="help" options={{ title: 'Hjelp', headerBackTitle: 'Tilbake' }} />
         </Stack>
       </View>
     </QueryClientProvider>
