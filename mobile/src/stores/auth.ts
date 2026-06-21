@@ -74,6 +74,8 @@ export const useAuthStore = create<AuthState>((set) => ({
   checkAuth: async () => {
     set({ isLoading: true });
     try {
+      // The Raspberry Pi installation is intentionally single-user. Requests
+      // without a bearer token are attached to its one local Birøkt user.
       const response = await authApi.me();
       if (response.data) {
         set({ user: response.data, isAuthenticated: true, isLoading: false });
