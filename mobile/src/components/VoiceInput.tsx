@@ -87,7 +87,7 @@ export function VoiceInput({ onTranscript }: VoiceInputProps) {
 
     const result = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
     if (!result.granted) {
-      Alert.alert('Tillatelse', 'Mikrofontilgang er nodvendig for stemmeinndata.');
+      Alert.alert('Tillatelse', 'Mikrofontilgang er nødvendig for stemmeinndata.');
       return;
     }
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Plus, Search, Filter, Calendar, Thermometer, Tag, Pencil, Trash2, ChevronDown } from 'lucide-react';
@@ -50,7 +50,7 @@ function formatDateShort(dateStr: string) {
   });
 }
 
-export default function JournalPage() {
+function JournalPageContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -454,5 +454,13 @@ export default function JournalPage() {
         </div>
       </Modal>
     </div>
+  );
+}
+
+export default function JournalPage() {
+  return (
+    <Suspense fallback={<Skeleton className="h-32 w-full" />}>
+      <JournalPageContent />
+    </Suspense>
   );
 }

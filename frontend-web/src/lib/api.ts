@@ -1,5 +1,6 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
 const BACKEND_URL = API_URL.replace(/\/api\/v\d+$/, '');
+type HiveQueenSetup = 'single_queen' | 'double_queen';
 
 /** Resolve a photo URL (which may be relative like /uploads/...) to an absolute URL */
 export function getImageUrl(url: string | null | undefined): string {
@@ -104,9 +105,6 @@ class ApiClient {
 
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
-      if (typeof window !== 'undefined') {
-        window.location.href = '/login';
-      }
     }
 
     return this.handleResponse<T>(response);
@@ -247,8 +245,8 @@ export const apiariesApi = {
 
   update: (id: string, data: Partial<{
     name: string;
-    description: string;
-    location: { name?: string; lat?: number; lng?: number };
+    description: string | null;
+    location: { name?: string | null; lat?: number | null; lng?: number | null };
     type: string;
     active: boolean;
   }>) => api.put(`/apiaries/${id}`, data),
@@ -282,7 +280,7 @@ export const hivesApi = {
   create: (data: {
     apiaryId: string;
     hiveNumber: string;
-    hiveType?: string;
+    hiveType?: HiveQueenSetup;
     status?: string;
     queen?: { year?: number; marked?: boolean; color?: string; race?: string };
     notes?: string;
@@ -290,7 +288,7 @@ export const hivesApi = {
 
   update: (id: string, data: Partial<{
     hiveNumber: string;
-    hiveType: string;
+    hiveType: HiveQueenSetup;
     status: string;
     strength: string;
     boxCount: number;
@@ -315,6 +313,15 @@ export const inspectionsApi = {
     frames?: { brood?: number; honey?: number; pollen?: number; empty?: number };
     health?: { status?: string; varroaLevel?: string; diseases?: string[]; pests?: string[] };
     actions?: Array<{ actionType: string; details?: Record<string, unknown> }>;
+    colonies?: Array<{
+      colonyNumber: number;
+      strength?: 'weak' | 'medium' | 'strong';
+      temperament?: 'calm' | 'nervous' | 'aggressive';
+      queenSeen?: boolean;
+      queenLaying?: boolean;
+      needsFood?: boolean;
+      healthStatus?: 'healthy' | 'warning' | 'critical';
+    }>;
     notes?: string;
   }) => api.post('/inspections', data),
 
@@ -335,11 +342,31 @@ export const statsApi = {
         nuc: number;
         byStrength: { strong: number; medium: number; weak: number };
         byHealth: { healthy: number; warning: number; critical: number };
+        needsAction: number;
       };
       inspections: { total: number; thisMonth: number; avgPerHive: string | number };
       production: { honeyKg: number; waxKg: number; totalRevenue: number };
       treatments: { total: number; activeWithholdings: number };
     }>('/stats/overview', params as Record<string, string>),
+
+  actionsNeeded: (params?: { year?: string; apiaryId?: string }) =>
+    api.get<{
+      year: number;
+      hives: Array<{
+        hive: {
+          id: string;
+          hiveNumber: string;
+          apiary: { id: string; name: string };
+        };
+        inspection: {
+          id: string;
+          inspectionDate: string;
+          healthStatus: string;
+          strength?: string;
+        };
+        actions: Array<{ id: string; actionType: string; details?: Record<string, unknown> }>;
+      }>;
+    }>('/stats/actions-needed', params as Record<string, string>),
 
   hive: (id: string, params?: { year?: string }) =>
     api.get(`/stats/hive/${id}`, params as Record<string, string>),

@@ -26,29 +26,51 @@ const strengthOptions = [
   { value: 'weak', label: 'Svak', color: '#fee2e2', textColor: '#991b1b' },
 ];
 
-const healthOptions = [
-  { value: 'healthy', label: 'Frisk', color: '#dcfce7', textColor: '#166534' },
-  { value: 'warning', label: 'Advarsel', color: '#fef3c7', textColor: '#92400e' },
-  { value: 'critical', label: 'Kritisk', color: '#fee2e2', textColor: '#991b1b' },
+const healthObservationOptions = [
+  { value: 'ok', label: 'Ok' },
+  { value: 'chalkbrood', label: 'Kalkyngel' },
+  { value: 'foulbrood', label: 'Yngelråte' },
+  { value: 'varroa', label: 'Varroa' },
+  { value: 'other', label: 'Annet' },
 ];
 
+const healthObservationLabels: Record<string, string> = {
+  ok: 'Ok',
+  chalkbrood: 'Kalkyngel',
+  foulbrood: 'Yngelråte',
+  varroa: 'Varroa',
+  other: 'Annet',
+};
+
 const actionOptions = [
-  { value: 'swarm_tendency', label: 'Svermetrang' },
-  { value: 'hunger', label: 'Sult' },
-  { value: 'space_shortage', label: 'Plassmangel' },
+  { value: 'needs_brood_box', label: 'Trenger yngelrom' },
+  { value: 'needs_super', label: 'Trenger skattekasse' },
+  { value: 'needs_split', label: 'Trenger deling' },
+  { value: 'needs_food', label: 'Trenger mat' },
 ];
 
 const actionLabels: Record<string, string> = {
+  needs_brood_box: 'Trenger yngelrom',
+  needs_super: 'Trenger skattekasse',
+  needs_split: 'Trenger deling',
+  needs_food: 'Trenger mat',
   swarm_tendency: 'Svermetrang',
-  hunger: 'Sult',
+  hunger: 'Trenger mat',
   space_shortage: 'Plassmangel',
 };
 
-interface QuickFormData {
-  strength: string;
-  healthStatus: string;
+type HiveType = 'single_queen' | 'double_queen';
+
+interface QuickColonyFormData {
+  colonyNumber: number;
+  strength: 'weak' | 'medium' | 'strong';
   queenSeen: boolean;
   queenLaying: boolean;
+}
+
+interface QuickFormData {
+  colonies: QuickColonyFormData[];
+  healthObservations: string[];
   broodFrames: string;
   honeyFrames: string;
   notes: string;
@@ -59,20 +81,31 @@ interface InspectedHive {
   id: string;
   hiveNumber: string;
   strength: string;
-  healthStatus: string;
+  healthObservations: string[];
   actions: string[];
 }
 
-const defaultFormData: QuickFormData = {
-  strength: 'medium',
-  healthStatus: 'healthy',
-  queenSeen: false,
-  queenLaying: false,
+const createDefaultColonies = (hiveType?: string): QuickColonyFormData[] => {
+  const colonyCount = hiveType === 'double_queen' ? 2 : 1;
+  return Array.from({ length: colonyCount }, (_, index) => ({
+    colonyNumber: index + 1,
+    strength: 'medium',
+    queenSeen: false,
+    queenLaying: false,
+  }));
+};
+
+const createDefaultFormData = (hiveType?: string): QuickFormData => ({
+  colonies: createDefaultColonies(hiveType),
+  healthObservations: ['ok'],
   broodFrames: '',
   honeyFrames: '',
   notes: '',
   selectedActions: [],
-};
+});
+
+const normalizeHiveType = (hiveType?: string): HiveType =>
+  hiveType === 'double_queen' ? 'double_queen' : 'single_queen';
 
 export default function BatchInspectionScreen() {
   const isOnline = useNetworkStatus();
@@ -84,14 +117,14 @@ export default function BatchInspectionScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
-  const [qrHive, setQrHive] = useState<{ id: string; hiveNumber: string } | null>(null);
-  const [qrForm, setQrForm] = useState<QuickFormData>({ ...defaultFormData });
+  const [qrHive, setQrHive] = useState<{ id: string; hiveNumber: string; hiveType?: HiveType } | null>(null);
+  const [qrForm, setQrForm] = useState<QuickFormData>(createDefaultFormData());
   const [showQrModal, setShowQrModal] = useState(false);
 
   // List mode state
   const [selectedApiaryId, setSelectedApiaryId] = useState<string | null>(null);
   const [expandedHiveId, setExpandedHiveId] = useState<string | null>(null);
-  const [listForm, setListForm] = useState<QuickFormData>({ ...defaultFormData });
+  const [listForm, setListForm] = useState<QuickFormData>(createDefaultFormData());
 
   const [saving, setSaving] = useState(false);
 
@@ -129,6 +162,7 @@ export default function BatchInspectionScreen() {
               hiveNumber: hive.hiveNumber,
               status: hive.status,
               strength: hive.strength,
+              hiveType: hive.hiveType,
             })),
           },
         };
@@ -136,7 +170,7 @@ export default function BatchInspectionScreen() {
     },
     enabled: !!selectedApiaryId,
   });
-  const hives = ((apiaryData?.data as { hives?: Array<{ id: string; hiveNumber: string; status: string; strength?: string }> })?.hives || []);
+  const hives = ((apiaryData?.data as { hives?: Array<{ id: string; hiveNumber: string; status: string; strength?: string; hiveType?: HiveType }> })?.hives || []);
 
   const totalHives = hives.length;
 
@@ -148,12 +182,17 @@ export default function BatchInspectionScreen() {
     try {
       const qrCode = data.replace(/^.*QR-/, 'QR-');
       const hive = isOnline
-        ? (await hivesApi.getByQr(qrCode)).data as { id: string; hiveNumber: string } | undefined
+        ? (await hivesApi.getByQr(qrCode)).data as { id: string; hiveNumber: string; hiveType?: HiveType } | undefined
         : await getHiveByQrCode(qrCode);
 
       if (hive) {
-        setQrHive(hive);
-        setQrForm({ ...defaultFormData });
+        const normalizedHiveType = normalizeHiveType(hive.hiveType);
+        setQrHive({
+          id: hive.id,
+          hiveNumber: hive.hiveNumber,
+          hiveType: normalizedHiveType,
+        });
+        setQrForm(createDefaultFormData(normalizedHiveType));
         setShowQrModal(true);
       } else {
         Alert.alert('Ikke funnet', 'Fant ingen kube med denne QR-koden');
@@ -166,6 +205,20 @@ export default function BatchInspectionScreen() {
   };
 
   const saveInspection = useCallback(async (hiveId: string, hiveNumber: string, form: QuickFormData) => {
+    const observedIssues = form.healthObservations.filter((item) => item !== 'ok');
+    const healthStatus = observedIssues.length > 0 ? 'warning' : 'healthy';
+    const diseases = observedIssues.filter((item) => ['chalkbrood', 'foulbrood', 'other'].includes(item));
+    const pests = observedIssues.filter((item) => item === 'varroa');
+    const primaryColony = form.colonies[0] ?? createDefaultColonies()[0];
+    const colonies = form.colonies.map((colony) => ({
+      colonyNumber: colony.colonyNumber,
+      strength: colony.strength,
+      queenSeen: colony.queenSeen,
+      queenLaying: colony.queenLaying,
+      needsFood: form.selectedActions.includes('needs_food'),
+      healthStatus: healthStatus as 'healthy' | 'warning' | 'critical',
+    }));
+
     setSaving(true);
     try {
       if (isOnline) {
@@ -173,18 +226,21 @@ export default function BatchInspectionScreen() {
           hiveId,
           inspectionDate: new Date().toISOString(),
           assessment: {
-            strength: form.strength,
-            queenSeen: form.queenSeen,
-            queenLaying: form.queenLaying,
+            strength: primaryColony.strength,
+            queenSeen: primaryColony.queenSeen,
+            queenLaying: primaryColony.queenLaying,
           },
           frames: {
             brood: form.broodFrames ? parseInt(form.broodFrames) : undefined,
             honey: form.honeyFrames ? parseInt(form.honeyFrames) : undefined,
           },
           health: {
-            status: form.healthStatus,
+            status: healthStatus,
+            diseases,
+            pests,
           },
           actions: form.selectedActions.length > 0 ? form.selectedActions.map((a) => ({ actionType: a })) : undefined,
+          colonies,
           notes: form.notes || undefined,
         });
       } else {
@@ -193,9 +249,9 @@ export default function BatchInspectionScreen() {
           inspectionDate: new Date().toISOString(),
           weather: {},
           assessment: {
-            strength: form.strength,
-            queenSeen: form.queenSeen,
-            queenLaying: form.queenLaying,
+            strength: primaryColony.strength,
+            queenSeen: primaryColony.queenSeen,
+            queenLaying: primaryColony.queenLaying,
           },
           frames: {
             brood: form.broodFrames ? parseInt(form.broodFrames) : 0,
@@ -204,15 +260,17 @@ export default function BatchInspectionScreen() {
             empty: 0,
           },
           health: {
-            status: form.healthStatus,
+            status: healthStatus,
           },
+          actions: form.selectedActions.length > 0 ? form.selectedActions.map((a) => ({ actionType: a })) : undefined,
           notes: form.notes || undefined,
+          colonies,
         });
       }
 
       setInspected((prev) => [
         ...prev,
-        { id: hiveId, hiveNumber, strength: form.strength, healthStatus: form.healthStatus, actions: form.selectedActions },
+        { id: hiveId, hiveNumber, strength: primaryColony.strength, healthObservations: form.healthObservations, actions: form.selectedActions },
       ]);
       return true;
     } catch {
@@ -221,7 +279,7 @@ export default function BatchInspectionScreen() {
     } finally {
       setSaving(false);
     }
-  }, []);
+  }, [isOnline]);
 
   const handleQrSave = async () => {
     if (!qrHive) return;
@@ -237,85 +295,121 @@ export default function BatchInspectionScreen() {
     const ok = await saveInspection(hiveId, hiveNumber, listForm);
     if (ok) {
       setExpandedHiveId(null);
-      setListForm({ ...defaultFormData });
+      setListForm(createDefaultFormData());
     }
   };
 
   const isInspected = (hiveId: string) => inspected.some((h) => h.id === hiveId);
 
-  const renderQuickForm = (form: QuickFormData, setForm: (f: QuickFormData) => void) => (
+  const renderQuickForm = (form: QuickFormData, setForm: (f: QuickFormData) => void) => {
+    const updateColony = <K extends keyof QuickColonyFormData>(
+      colonyNumber: number,
+      field: K,
+      value: QuickColonyFormData[K]
+    ) => {
+      setForm({
+        ...form,
+        colonies: form.colonies.map((colony) =>
+          colony.colonyNumber === colonyNumber ? { ...colony, [field]: value } : colony
+        ),
+      });
+    };
+
+    return (
     <View style={styles.quickForm}>
-      <Text style={styles.formLabel}>Styrke</Text>
-      <View style={styles.buttonRow}>
-        {strengthOptions.map((opt) => (
-          <TouchableOpacity
-            key={opt.value}
-            style={[
-              styles.colorButton,
-              { backgroundColor: form.strength === opt.value ? opt.color : '#f3f4f6' },
-            ]}
-            onPress={() => setForm({ ...form, strength: opt.value })}
-            accessibilityRole="button"
-            accessibilityLabel={`Styrke: ${opt.label}`}
-            accessibilityState={{ selected: form.strength === opt.value }}
-          >
-            <Text style={[styles.colorButtonText, { color: form.strength === opt.value ? opt.textColor : '#6b7280' }]}>
-              {opt.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      {form.colonies.map((colony, index) => (
+        <View
+          key={colony.colonyNumber}
+          style={[styles.quickColonyGroup, index > 0 && styles.quickColonyDivider]}
+        >
+          {form.colonies.length > 1 && (
+            <Text style={styles.quickColonyTitle}>Bifolk {colony.colonyNumber}</Text>
+          )}
+          <Text style={styles.formLabel}>Styrke</Text>
+          <View style={styles.buttonRow}>
+            {strengthOptions.map((opt) => (
+              <TouchableOpacity
+                key={opt.value}
+                style={[
+                  styles.colorButton,
+                  { backgroundColor: colony.strength === opt.value ? opt.color : '#f3f4f6' },
+                ]}
+                onPress={() => updateColony(colony.colonyNumber, 'strength', opt.value as QuickColonyFormData['strength'])}
+                accessibilityRole="button"
+                accessibilityLabel={`Bifolk ${colony.colonyNumber} styrke: ${opt.label}`}
+                accessibilityState={{ selected: colony.strength === opt.value }}
+              >
+                <Text style={[styles.colorButtonText, { color: colony.strength === opt.value ? opt.textColor : '#6b7280' }]}>
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <View style={styles.checkboxRow}>
+            <TouchableOpacity
+              style={styles.checkbox}
+              onPress={() => updateColony(colony.colonyNumber, 'queenSeen', !colony.queenSeen)}
+              accessibilityRole="checkbox"
+              accessibilityLabel={`Bifolk ${colony.colonyNumber} dronning sett`}
+              accessibilityState={{ checked: colony.queenSeen }}
+            >
+              <Ionicons
+                name={colony.queenSeen ? 'checkbox' : 'square-outline'}
+                size={22}
+                color={colony.queenSeen ? '#f59e0b' : '#9ca3af'}
+              />
+              <Text style={styles.checkboxLabel}>Dronning sett</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.checkbox}
+              onPress={() => updateColony(colony.colonyNumber, 'queenLaying', !colony.queenLaying)}
+              accessibilityRole="checkbox"
+              accessibilityLabel={`Bifolk ${colony.colonyNumber} legger egg`}
+              accessibilityState={{ checked: colony.queenLaying }}
+            >
+              <Ionicons
+                name={colony.queenLaying ? 'checkbox' : 'square-outline'}
+                size={22}
+                color={colony.queenLaying ? '#f59e0b' : '#9ca3af'}
+              />
+              <Text style={styles.checkboxLabel}>Legger egg</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      ))}
 
       <Text style={styles.formLabel}>Helse</Text>
       <View style={styles.buttonRow}>
-        {healthOptions.map((opt) => (
-          <TouchableOpacity
-            key={opt.value}
-            style={[
-              styles.colorButton,
-              { backgroundColor: form.healthStatus === opt.value ? opt.color : '#f3f4f6' },
-            ]}
-            onPress={() => setForm({ ...form, healthStatus: opt.value })}
-            accessibilityRole="button"
-            accessibilityLabel={`Helse: ${opt.label}`}
-            accessibilityState={{ selected: form.healthStatus === opt.value }}
-          >
-            <Text style={[styles.colorButtonText, { color: form.healthStatus === opt.value ? opt.textColor : '#6b7280' }]}>
-              {opt.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <View style={styles.checkboxRow}>
-        <TouchableOpacity
-          style={styles.checkbox}
-          onPress={() => setForm({ ...form, queenSeen: !form.queenSeen })}
-          accessibilityRole="checkbox"
-          accessibilityLabel="Dronning sett"
-          accessibilityState={{ checked: form.queenSeen }}
-        >
-          <Ionicons
-            name={form.queenSeen ? 'checkbox' : 'square-outline'}
-            size={22}
-            color={form.queenSeen ? '#f59e0b' : '#9ca3af'}
-          />
-          <Text style={styles.checkboxLabel}>Dronning sett</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.checkbox}
-          onPress={() => setForm({ ...form, queenLaying: !form.queenLaying })}
-          accessibilityRole="checkbox"
-          accessibilityLabel="Legger egg"
-          accessibilityState={{ checked: form.queenLaying }}
-        >
-          <Ionicons
-            name={form.queenLaying ? 'checkbox' : 'square-outline'}
-            size={22}
-            color={form.queenLaying ? '#f59e0b' : '#9ca3af'}
-          />
-          <Text style={styles.checkboxLabel}>Legger egg</Text>
-        </TouchableOpacity>
+        {healthObservationOptions.map((opt) => {
+          const isSelected = form.healthObservations.includes(opt.value);
+          return (
+            <TouchableOpacity
+              key={opt.value}
+              style={[styles.actionToggle, isSelected && styles.actionToggleSelected]}
+              onPress={() => {
+                const next = opt.value === 'ok'
+                  ? (isSelected ? [] : ['ok'])
+                  : (isSelected
+                    ? form.healthObservations.filter((v) => v !== opt.value)
+                    : [...form.healthObservations.filter((v) => v !== 'ok'), opt.value]);
+                setForm({ ...form, healthObservations: next });
+              }}
+              accessibilityRole="checkbox"
+              accessibilityLabel={`Helse observert: ${opt.label}`}
+              accessibilityState={{ checked: isSelected }}
+            >
+              <Ionicons
+                name={isSelected ? 'checkbox' : 'square-outline'}
+                size={16}
+                color={isSelected ? '#f59e0b' : '#9ca3af'}
+              />
+              <Text style={[styles.actionToggleText, isSelected && styles.actionToggleTextSelected]}>
+                {opt.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       <View style={styles.framesRow}>
@@ -392,7 +486,8 @@ export default function BatchInspectionScreen() {
         })}
       </View>
     </View>
-  );
+    );
+  };
 
   // Summary view
   if (showSummary) {
@@ -418,9 +513,11 @@ export default function BatchInspectionScreen() {
                     <Text style={[styles.badgeText, { color: o.textColor }]}>{o.label}</Text>
                   </View>
                 ))}
-                {healthOptions.filter((o) => o.value === item.healthStatus).map((o) => (
-                  <View key={o.value} style={[styles.badge, { backgroundColor: o.color }]}>
-                    <Text style={[styles.badgeText, { color: o.textColor }]}>{o.label}</Text>
+                {item.healthObservations.map((observation) => (
+                  <View key={observation} style={[styles.badge, { backgroundColor: observation === 'ok' ? '#dcfce7' : '#fef3c7' }]}>
+                    <Text style={[styles.badgeText, { color: observation === 'ok' ? '#166534' : '#92400e' }]}>
+                      {healthObservationLabels[observation] || observation}
+                    </Text>
                   </View>
                 ))}
                 {item.actions.map((a) => (
@@ -588,7 +685,7 @@ export default function BatchInspectionScreen() {
                           setExpandedHiveId(null);
                         } else {
                           setExpandedHiveId(item.id);
-                          setListForm({ ...defaultFormData });
+                          setListForm(createDefaultFormData(item.hiveType));
                         }
                       }}
                       disabled={done}
@@ -877,6 +974,21 @@ const styles = StyleSheet.create({
   // Quick form
   quickForm: {
     paddingVertical: 8,
+  },
+  quickColonyGroup: {
+    paddingTop: 4,
+  },
+  quickColonyDivider: {
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+    marginTop: 14,
+    paddingTop: 14,
+  },
+  quickColonyTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1f2937',
+    marginBottom: 2,
   },
   formLabel: {
     fontSize: 13,

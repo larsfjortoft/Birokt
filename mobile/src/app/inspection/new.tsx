@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   View,
   Text,
@@ -14,21 +14,13 @@ import {
 import { useLocalSearchParams, router } from 'expo-router';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
-import * as Location from 'expo-location';
-import { inspectionsApi, weatherApi, WeatherData } from '../../lib/api';
+import { inspectionsApi } from '../../lib/api';
 import { logError } from '../../lib/sentry';
 import { PhotoPicker } from '../../components/PhotoPicker';
 import { PhotoPreview } from '../../components/PhotoPreview';
 import { VoiceInput } from '../../components/VoiceInput';
 import { useNetworkStatus } from '../../hooks/useOffline';
 import { createInspection, savePhotosForInspection } from '../../services/offlineData';
-
-const weatherOptions = [
-  { value: 'sunny', label: 'Sol', icon: 'sunny-outline' },
-  { value: 'partly_cloudy', label: 'Delvis skyet', icon: 'partly-sunny-outline' },
-  { value: 'cloudy', label: 'Overskyet', icon: 'cloud-outline' },
-  { value: 'rainy', label: 'Regn', icon: 'rainy-outline' },
-];
 
 const strengthOptions = [
   { value: 'strong', label: 'Sterk', color: '#dcfce7', textColor: '#166534' },
@@ -38,142 +30,93 @@ const strengthOptions = [
 
 const temperamentOptions = [
   { value: 'calm', label: 'Rolig' },
-  { value: 'nervous', label: 'Nervos' },
+  { value: 'nervous', label: 'Nervøs' },
   { value: 'aggressive', label: 'Aggressiv' },
 ];
 
-const healthOptions = [
-  { value: 'healthy', label: 'Frisk', color: '#dcfce7', textColor: '#166534' },
-  { value: 'warning', label: 'Advarsel', color: '#fef3c7', textColor: '#92400e' },
-  { value: 'critical', label: 'Kritisk', color: '#fee2e2', textColor: '#991b1b' },
-];
-
-const varroaOptions = [
-  { value: 'none', label: 'Ingen' },
-  { value: 'low', label: 'Lav' },
-  { value: 'medium', label: 'Middels' },
-  { value: 'high', label: 'Hoy' },
+const healthObservationOptions = [
+  { value: 'ok', label: 'Ok' },
+  { value: 'chalkbrood', label: 'Kalkyngel' },
+  { value: 'foulbrood', label: 'Yngelråte' },
+  { value: 'varroa', label: 'Varroa' },
+  { value: 'other', label: 'Annet' },
 ];
 
 const actionOptions = [
-  { value: 'swarm_tendency', label: 'Svermetrang' },
-  { value: 'hunger', label: 'Sult' },
-  { value: 'space_shortage', label: 'Plassmangel' },
+  { value: 'needs_brood_box', label: 'Trenger yngelrom' },
+  { value: 'needs_super', label: 'Trenger skattekasse' },
+  { value: 'needs_split', label: 'Trenger deling' },
+  { value: 'needs_food', label: 'Trenger mat' },
 ];
 
+type HiveType = 'single_queen' | 'double_queen';
+
+type ColonyFormData = {
+  colonyNumber: number;
+  strength: 'weak' | 'medium' | 'strong';
+  temperament: 'calm' | 'nervous' | 'aggressive';
+  queenSeen: boolean;
+  queenLaying: boolean;
+};
+
+const createDefaultColonies = (hiveType?: string): ColonyFormData[] => {
+  const colonyCount = hiveType === 'double_queen' ? 2 : 1;
+  return Array.from({ length: colonyCount }, (_, index) => ({
+    colonyNumber: index + 1,
+    strength: 'medium',
+    temperament: 'calm',
+    queenSeen: false,
+    queenLaying: true,
+  }));
+};
+
 export default function NewInspectionScreen() {
-  const { hiveId, hiveNumber, apiaryLat, apiaryLng } = useLocalSearchParams<{
+  const { hiveId, hiveNumber, hiveType } = useLocalSearchParams<{
     hiveId: string;
     hiveNumber: string;
-    apiaryLat?: string;
-    apiaryLng?: string;
+    hiveType?: HiveType;
   }>();
   const queryClient = useQueryClient();
   const isOnline = useNetworkStatus();
 
   const [formData, setFormData] = useState({
-    temperature: '',
-    windSpeed: '',
-    weatherCondition: 'sunny',
-    strength: 'medium',
-    temperament: 'calm',
-    queenSeen: false,
-    queenLaying: true,
-    broodFrames: '',
-    honeyFrames: '',
-    pollenFrames: '',
-    emptyFrames: '',
-    healthStatus: 'healthy',
-    varroaLevel: 'none',
+    colonies: createDefaultColonies(hiveType),
+    healthObservations: ['ok'],
     notes: '',
   });
 
   const [selectedActions, setSelectedActions] = useState<string[]>([]);
   const [photos, setPhotos] = useState<string[]>([]);
   const [isUploadingPhotos, setIsUploadingPhotos] = useState(false);
-  const [weatherLoading, setWeatherLoading] = useState(true);
-  const [weatherError, setWeatherError] = useState<string | null>(null);
-  const [weatherSource, setWeatherSource] = useState<'auto' | 'manual'>('auto');
 
-  // Fetch weather data automatically on mount
-  // Priority: 1) Apiary coordinates (from database), 2) GPS location
-  useEffect(() => {
-    async function fetchWeather() {
-      try {
-        setWeatherLoading(true);
-        setWeatherError(null);
-
-        let lat: number | undefined;
-        let lng: number | undefined;
-
-        // Use apiary coordinates if available
-        if (apiaryLat && apiaryLng) {
-          lat = parseFloat(apiaryLat);
-          lng = parseFloat(apiaryLng);
-        }
-
-        // Fall back to GPS if no apiary coordinates
-        if (!lat || !lng) {
-          const { status } = await Location.requestForegroundPermissionsAsync();
-          if (status !== 'granted') {
-            setWeatherError('Mangler tilgang til lokasjon');
-            setWeatherSource('manual');
-            setWeatherLoading(false);
-            return;
-          }
-
-          const location = await Location.getCurrentPositionAsync({
-            accuracy: Location.Accuracy.Balanced,
-          });
-          lat = location.coords.latitude;
-          lng = location.coords.longitude;
-        }
-
-        // Fetch weather from API
-        if (!isOnline) {
-          setWeatherError('Ingen nettforbindelse');
-          setWeatherSource('manual');
-          setWeatherLoading(false);
-          return;
-        }
-
-        const response = await weatherApi.current(lat, lng);
-
-        if (response.data) {
-          const weather = response.data;
-          setFormData((prev) => ({
-            ...prev,
-            temperature: weather.temperature.toString(),
-            windSpeed: weather.windSpeed.toString(),
-            weatherCondition: mapConditionCode(weather.conditionCode),
-          }));
-          setWeatherSource('auto');
-        }
-      } catch (error) {
-        logError(error, { context: 'fetchWeather' });
-        setWeatherError('Kunne ikke hente værdata');
-        setWeatherSource('manual');
-      } finally {
-        setWeatherLoading(false);
+  const toggleHealthObservation = (value: string) => {
+    setFormData((prev) => {
+      const current = prev.healthObservations;
+      if (value === 'ok') {
+        return { ...prev, healthObservations: current.includes('ok') ? [] : ['ok'] };
       }
+
+      const withoutOk = current.filter((item) => item !== 'ok');
+      const next = withoutOk.includes(value)
+        ? withoutOk.filter((item) => item !== value)
+        : [...withoutOk, value];
+      return { ...prev, healthObservations: next };
+    });
+  };
+
+  const closeInspection = () => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
     }
 
-    fetchWeather();
-  }, [apiaryLat, apiaryLng, isOnline]);
+    if (hiveId) {
+      router.replace({ pathname: '/hive/[id]', params: { id: hiveId } });
+      return;
+    }
 
-  // Map met.no condition codes to our form options
-  function mapConditionCode(code: string): string {
-    const mapping: Record<string, string> = {
-      sunny: 'sunny',
-      partly_cloudy: 'partly_cloudy',
-      cloudy: 'cloudy',
-      rainy: 'rainy',
-      snowy: 'cloudy',
-      foggy: 'cloudy',
-      stormy: 'rainy',
-    };
-    return mapping[code] || 'cloudy';
-  }
+    router.replace('/(tabs)/home');
+  };
 
   const createMutation = useMutation({
     mutationFn: async (data: Parameters<typeof inspectionsApi.create>[0]) => {
@@ -201,11 +144,11 @@ export default function NewInspectionScreen() {
         Alert.alert(
           'Delvis lagret',
           'Inspeksjonen ble lagret, men bildene kunne ikke lastes opp. Bildeopplasting er ikke støttet på serveren ennå.',
-          [{ text: 'OK', onPress: () => router.back() }]
+          [{ text: 'OK', onPress: closeInspection }]
         );
       } else {
         Alert.alert('Lagret', 'Inspeksjonen er registrert', [
-          { text: 'OK', onPress: () => router.back() },
+          { text: 'OK', onPress: closeInspection },
         ]);
       }
     },
@@ -215,31 +158,33 @@ export default function NewInspectionScreen() {
   });
 
   const handleSave = async () => {
+    const observedIssues = formData.healthObservations.filter((item) => item !== 'ok');
+    const healthStatus = observedIssues.length > 0 ? 'warning' : 'healthy';
+    const diseases = observedIssues.filter((item) => ['chalkbrood', 'foulbrood', 'other'].includes(item));
+    const pests = observedIssues.filter((item) => item === 'varroa');
+    const primaryColony = formData.colonies[0] ?? createDefaultColonies(hiveType)[0];
+    const colonies = formData.colonies.map((colony) => ({
+      ...colony,
+      needsFood: selectedActions.includes('needs_food'),
+      healthStatus: healthStatus as 'healthy' | 'warning' | 'critical',
+    }));
+
     const payload = {
       hiveId,
       inspectionDate: new Date().toISOString(),
-      weather: {
-        temperature: formData.temperature ? parseFloat(formData.temperature) : undefined,
-        windSpeed: formData.windSpeed ? parseFloat(formData.windSpeed) : undefined,
-        condition: formData.weatherCondition,
-      },
       assessment: {
-        strength: formData.strength,
-        temperament: formData.temperament,
-        queenSeen: formData.queenSeen,
-        queenLaying: formData.queenLaying,
-      },
-      frames: {
-        brood: formData.broodFrames ? parseInt(formData.broodFrames) : undefined,
-        honey: formData.honeyFrames ? parseInt(formData.honeyFrames) : undefined,
-        pollen: formData.pollenFrames ? parseInt(formData.pollenFrames) : undefined,
-        empty: formData.emptyFrames ? parseInt(formData.emptyFrames) : undefined,
+        strength: primaryColony.strength,
+        temperament: primaryColony.temperament,
+        queenSeen: primaryColony.queenSeen,
+        queenLaying: primaryColony.queenLaying,
       },
       health: {
-        status: formData.healthStatus,
-        varroaLevel: formData.varroaLevel,
+        status: healthStatus,
+        diseases,
+        pests,
       },
       actions: selectedActions.length > 0 ? selectedActions.map((a) => ({ actionType: a })) : undefined,
+      colonies,
       notes: formData.notes || undefined,
     };
 
@@ -252,7 +197,7 @@ export default function NewInspectionScreen() {
       await createInspection({
         hiveId: payload.hiveId,
         inspectionDate: payload.inspectionDate,
-        weather: payload.weather || {},
+        weather: {},
         assessment: {
           strength: payload.assessment?.strength,
           temperament: payload.assessment?.temperament,
@@ -260,21 +205,22 @@ export default function NewInspectionScreen() {
           queenLaying: payload.assessment?.queenLaying ?? false,
         },
         frames: {
-          brood: payload.frames?.brood ?? 0,
-          honey: payload.frames?.honey ?? 0,
-          pollen: payload.frames?.pollen ?? 0,
-          empty: payload.frames?.empty ?? 0,
+          brood: 0,
+          honey: 0,
+          pollen: 0,
+          empty: 0,
         },
         health: {
           status: payload.health?.status || 'healthy',
-          varroaLevel: payload.health?.varroaLevel,
         },
+        actions: payload.actions,
         notes: payload.notes,
         photos,
+        colonies: payload.colonies,
       });
       queryClient.invalidateQueries({ queryKey: ['hive', hiveId] });
       Alert.alert('Lagret lokalt', 'Inspeksjonen og eventuelle bilder synkroniseres når du er tilkoblet.', [
-        { text: 'OK', onPress: () => router.back() },
+        { text: 'OK', onPress: closeInspection },
       ]);
     } catch {
       Alert.alert('Feil', 'Kunne ikke lagre inspeksjonen lokalt');
@@ -283,6 +229,19 @@ export default function NewInspectionScreen() {
 
   const updateField = (field: string, value: unknown) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const updateColony = <K extends keyof ColonyFormData>(
+    colonyNumber: number,
+    field: K,
+    value: ColonyFormData[K]
+  ) => {
+    setFormData((prev) => ({
+      ...prev,
+      colonies: prev.colonies.map((colony) =>
+        colony.colonyNumber === colonyNumber ? { ...colony, [field]: value } : colony
+      ),
+    }));
   };
 
   return (
@@ -303,8 +262,11 @@ export default function NewInspectionScreen() {
             <Text style={styles.offlineText}>Offline - inspeksjonen lagres lokalt</Text>
           </View>
         )}
-        <View style={styles.header}>
+      <View style={styles.header}>
         <Text style={styles.headerTitle}>Kube {hiveNumber}</Text>
+        {hiveType === 'double_queen' && (
+          <Text style={styles.hiveTypeLabel}>To dronninger</Text>
+        )}
         <Text style={styles.headerDate}>
           {new Date().toLocaleDateString('nb-NO', {
             weekday: 'long',
@@ -315,248 +277,106 @@ export default function NewInspectionScreen() {
         </Text>
       </View>
 
-      {/* Weather Section */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>
-            <Ionicons name="thermometer-outline" size={18} color="#f59e0b" /> Vær
-          </Text>
-          {weatherLoading ? (
-            <View style={styles.weatherStatus}>
-              <ActivityIndicator size="small" color="#f59e0b" />
-              <Text style={styles.weatherStatusText}>Henter fra YR...</Text>
-            </View>
-          ) : weatherSource === 'auto' ? (
-            <View style={styles.weatherStatus}>
-              <Ionicons name="location" size={14} color="#10b981" />
-              <Text style={[styles.weatherStatusText, { color: '#10b981' }]}>Fra YR.no</Text>
-            </View>
-          ) : weatherError ? (
-            <View style={styles.weatherStatus}>
-              <Ionicons name="alert-circle" size={14} color="#f59e0b" />
-              <Text style={[styles.weatherStatusText, { color: '#f59e0b' }]}>Manuelt</Text>
-            </View>
-          ) : null}
-        </View>
-
-        {weatherError && (
-          <View style={styles.weatherErrorBanner}>
-            <Ionicons name="information-circle" size={16} color="#92400e" />
-            <Text style={styles.weatherErrorText}>{weatherError}. Fyll inn manuelt.</Text>
-          </View>
-        )}
-
-        <View style={styles.row}>
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Temperatur (C)</Text>
-            <TextInput
-              style={[styles.input, weatherSource === 'auto' && styles.inputAuto]}
-              value={formData.temperature}
-              onChangeText={(v) => {
-                updateField('temperature', v);
-                setWeatherSource('manual');
-              }}
-              keyboardType="numeric"
-              placeholder="18"
-              accessibilityLabel="Temperatur i celsius"
-            />
-          </View>
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Vind (m/s)</Text>
-            <TextInput
-              style={[styles.input, weatherSource === 'auto' && styles.inputAuto]}
-              value={formData.windSpeed}
-              onChangeText={(v) => {
-                updateField('windSpeed', v);
-                setWeatherSource('manual');
-              }}
-              keyboardType="numeric"
-              placeholder="3"
-              accessibilityLabel="Vindstyrke i meter per sekund"
-            />
-          </View>
-        </View>
-
-        <Text style={styles.label}>Værforhold</Text>
-        <View style={styles.buttonRow}>
-          {weatherOptions.map((opt) => (
-            <TouchableOpacity
-              key={opt.value}
-              style={[
-                styles.optionButton,
-                formData.weatherCondition === opt.value && styles.optionSelected,
-              ]}
-              onPress={() => {
-                updateField('weatherCondition', opt.value);
-                setWeatherSource('manual');
-              }}
-              accessibilityRole="button"
-              accessibilityLabel={opt.label}
-              accessibilityState={{ selected: formData.weatherCondition === opt.value }}
-            >
-              <Ionicons
-                name={opt.icon as 'sunny-outline'}
-                size={20}
-                color={formData.weatherCondition === opt.value ? '#f59e0b' : '#6b7280'}
-              />
-              <Text
-                style={[
-                  styles.optionText,
-                  formData.weatherCondition === opt.value && styles.optionTextSelected,
-                ]}
-              >
-                {opt.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-
       {/* Assessment Section */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>
-          <Ionicons name="sparkles-outline" size={18} color="#f59e0b" /> Vurdering
+          <Ionicons name="sparkles-outline" size={18} color="#f59e0b" /> Bifolk
         </Text>
 
-        <Text style={styles.label}>Kolonistyrke</Text>
-        <View style={styles.buttonRow}>
-          {strengthOptions.map((opt) => (
-            <TouchableOpacity
-              key={opt.value}
-              style={[
-                styles.colorButton,
-                { backgroundColor: formData.strength === opt.value ? opt.color : '#f3f4f6' },
-              ]}
-              onPress={() => updateField('strength', opt.value)}
-              accessibilityRole="button"
-              accessibilityLabel={`Kolonistyrke: ${opt.label}`}
-              accessibilityState={{ selected: formData.strength === opt.value }}
-            >
-              <Text
-                style={[
-                  styles.colorButtonText,
-                  { color: formData.strength === opt.value ? opt.textColor : '#6b7280' },
-                ]}
-              >
-                {opt.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        <Text style={styles.label}>Temperament</Text>
-        <View style={styles.buttonRow}>
-          {temperamentOptions.map((opt) => (
-            <TouchableOpacity
-              key={opt.value}
-              style={[
-                styles.optionButton,
-                formData.temperament === opt.value && styles.optionSelected,
-              ]}
-              onPress={() => updateField('temperament', opt.value)}
-              accessibilityRole="button"
-              accessibilityLabel={`Temperament: ${opt.label}`}
-              accessibilityState={{ selected: formData.temperament === opt.value }}
-            >
-              <Text
-                style={[
-                  styles.optionText,
-                  formData.temperament === opt.value && styles.optionTextSelected,
-                ]}
-              >
-                {opt.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        <View style={styles.checkboxRow}>
-          <TouchableOpacity
-            style={styles.checkbox}
-            onPress={() => updateField('queenSeen', !formData.queenSeen)}
-            accessibilityRole="checkbox"
-            accessibilityLabel="Dronning sett"
-            accessibilityState={{ checked: formData.queenSeen }}
+        {formData.colonies.map((colony, index) => (
+          <View
+            key={colony.colonyNumber}
+            style={[styles.colonyGroup, index > 0 && styles.colonyGroupDivider]}
           >
-            <Ionicons
-              name={formData.queenSeen ? 'checkbox' : 'square-outline'}
-              size={24}
-              color={formData.queenSeen ? '#f59e0b' : '#9ca3af'}
-            />
-            <Text style={styles.checkboxLabel}>Dronning sett</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.checkbox}
-            onPress={() => updateField('queenLaying', !formData.queenLaying)}
-            accessibilityRole="checkbox"
-            accessibilityLabel="Legger egg"
-            accessibilityState={{ checked: formData.queenLaying }}
-          >
-            <Ionicons
-              name={formData.queenLaying ? 'checkbox' : 'square-outline'}
-              size={24}
-              color={formData.queenLaying ? '#f59e0b' : '#9ca3af'}
-            />
-            <Text style={styles.checkboxLabel}>Legger egg</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+            {formData.colonies.length > 1 && (
+              <Text style={styles.colonyTitle}>Bifolk {colony.colonyNumber}</Text>
+            )}
 
-      {/* Frames Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>
-          <Ionicons name="layers-outline" size={18} color="#f59e0b" /> Rammer
-        </Text>
+            <Text style={styles.label}>Styrke</Text>
+            <View style={styles.buttonRow}>
+              {strengthOptions.map((opt) => (
+                <TouchableOpacity
+                  key={opt.value}
+                  style={[
+                    styles.colorButton,
+                    { backgroundColor: colony.strength === opt.value ? opt.color : '#f3f4f6' },
+                  ]}
+                  onPress={() => updateColony(colony.colonyNumber, 'strength', opt.value as ColonyFormData['strength'])}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Bifolk ${colony.colonyNumber} styrke: ${opt.label}`}
+                  accessibilityState={{ selected: colony.strength === opt.value }}
+                >
+                  <Text
+                    style={[
+                      styles.colorButtonText,
+                      { color: colony.strength === opt.value ? opt.textColor : '#6b7280' },
+                    ]}
+                  >
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
 
-        <View style={styles.row}>
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Yngel</Text>
-            <TextInput
-              style={styles.input}
-              value={formData.broodFrames}
-              onChangeText={(v) => updateField('broodFrames', v)}
-              keyboardType="numeric"
-              placeholder="0"
-              accessibilityLabel="Antall yngelrammer"
-            />
-          </View>
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Honning</Text>
-            <TextInput
-              style={styles.input}
-              value={formData.honeyFrames}
-              onChangeText={(v) => updateField('honeyFrames', v)}
-              keyboardType="numeric"
-              placeholder="0"
-              accessibilityLabel="Antall honningrammer"
-            />
-          </View>
-        </View>
+            <Text style={styles.label}>Temperament</Text>
+            <View style={styles.buttonRow}>
+              {temperamentOptions.map((opt) => (
+                <TouchableOpacity
+                  key={opt.value}
+                  style={[
+                    styles.optionButton,
+                    colony.temperament === opt.value && styles.optionSelected,
+                  ]}
+                  onPress={() => updateColony(colony.colonyNumber, 'temperament', opt.value as ColonyFormData['temperament'])}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Bifolk ${colony.colonyNumber} temperament: ${opt.label}`}
+                  accessibilityState={{ selected: colony.temperament === opt.value }}
+                >
+                  <Text
+                    style={[
+                      styles.optionText,
+                      colony.temperament === opt.value && styles.optionTextSelected,
+                    ]}
+                  >
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
 
-        <View style={styles.row}>
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Pollen</Text>
-            <TextInput
-              style={styles.input}
-              value={formData.pollenFrames}
-              onChangeText={(v) => updateField('pollenFrames', v)}
-              keyboardType="numeric"
-              placeholder="0"
-              accessibilityLabel="Antall pollenrammer"
-            />
+            <View style={styles.checkboxGrid}>
+              <TouchableOpacity
+                style={styles.checkbox}
+                onPress={() => updateColony(colony.colonyNumber, 'queenSeen', !colony.queenSeen)}
+                accessibilityRole="checkbox"
+                accessibilityLabel={`Bifolk ${colony.colonyNumber} dronning sett`}
+                accessibilityState={{ checked: colony.queenSeen }}
+              >
+                <Ionicons
+                  name={colony.queenSeen ? 'checkbox' : 'square-outline'}
+                  size={22}
+                  color={colony.queenSeen ? '#f59e0b' : '#9ca3af'}
+                />
+                <Text style={styles.checkboxLabel}>Dronning sett</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.checkbox}
+                onPress={() => updateColony(colony.colonyNumber, 'queenLaying', !colony.queenLaying)}
+                accessibilityRole="checkbox"
+                accessibilityLabel={`Bifolk ${colony.colonyNumber} dronning legger egg`}
+                accessibilityState={{ checked: colony.queenLaying }}
+              >
+                <Ionicons
+                  name={colony.queenLaying ? 'checkbox' : 'square-outline'}
+                  size={22}
+                  color={colony.queenLaying ? '#f59e0b' : '#9ca3af'}
+                />
+                <Text style={styles.checkboxLabel}>Dronning legger egg</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Tomme</Text>
-            <TextInput
-              style={styles.input}
-              value={formData.emptyFrames}
-              onChangeText={(v) => updateField('emptyFrames', v)}
-              keyboardType="numeric"
-              placeholder="0"
-              accessibilityLabel="Antall tomme rammer"
-            />
-          </View>
-        </View>
+        ))}
       </View>
 
       {/* Health Section */}
@@ -565,56 +385,38 @@ export default function NewInspectionScreen() {
           <Ionicons name="heart-outline" size={18} color="#f59e0b" /> Helse
         </Text>
 
-        <Text style={styles.label}>Helsestatus</Text>
+        <Text style={styles.label}>Observert</Text>
         <View style={styles.buttonRow}>
-          {healthOptions.map((opt) => (
-            <TouchableOpacity
-              key={opt.value}
-              style={[
-                styles.colorButton,
-                { backgroundColor: formData.healthStatus === opt.value ? opt.color : '#f3f4f6' },
-              ]}
-              onPress={() => updateField('healthStatus', opt.value)}
-              accessibilityRole="button"
-              accessibilityLabel={`Helsestatus: ${opt.label}`}
-              accessibilityState={{ selected: formData.healthStatus === opt.value }}
-            >
-              <Text
+          {healthObservationOptions.map((opt) => {
+            const isSelected = formData.healthObservations.includes(opt.value);
+            return (
+              <TouchableOpacity
+                key={opt.value}
                 style={[
-                  styles.colorButtonText,
-                  { color: formData.healthStatus === opt.value ? opt.textColor : '#6b7280' },
+                  styles.optionButton,
+                  isSelected && styles.optionSelected,
                 ]}
+                onPress={() => toggleHealthObservation(opt.value)}
+                accessibilityRole="checkbox"
+                accessibilityLabel={`Helse observert: ${opt.label}`}
+                accessibilityState={{ checked: isSelected }}
               >
-                {opt.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        <Text style={styles.label}>Varroatrykk</Text>
-        <View style={styles.buttonRow}>
-          {varroaOptions.map((opt) => (
-            <TouchableOpacity
-              key={opt.value}
-              style={[
-                styles.optionButton,
-                formData.varroaLevel === opt.value && styles.optionSelected,
-              ]}
-              onPress={() => updateField('varroaLevel', opt.value)}
-              accessibilityRole="button"
-              accessibilityLabel={`Varroatrykk: ${opt.label}`}
-              accessibilityState={{ selected: formData.varroaLevel === opt.value }}
-            >
-              <Text
-                style={[
-                  styles.optionText,
-                  formData.varroaLevel === opt.value && styles.optionTextSelected,
-                ]}
-              >
-                {opt.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+                <Ionicons
+                  name={isSelected ? 'checkbox' : 'square-outline'}
+                  size={18}
+                  color={isSelected ? '#f59e0b' : '#9ca3af'}
+                />
+                <Text
+                  style={[
+                    styles.optionText,
+                    isSelected && styles.optionTextSelected,
+                  ]}
+                >
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </View>
 
@@ -723,6 +525,17 @@ export default function NewInspectionScreen() {
         )}
       </TouchableOpacity>
 
+      <TouchableOpacity
+        style={styles.cancelButton}
+        onPress={closeInspection}
+        disabled={createMutation.isPending || isUploadingPhotos}
+        accessibilityRole="button"
+        accessibilityLabel="Avbryt inspeksjon"
+        accessibilityState={{ disabled: createMutation.isPending || isUploadingPhotos }}
+      >
+        <Text style={styles.cancelButtonText}>Avbryt</Text>
+      </TouchableOpacity>
+
         <View style={styles.bottomSpacer} />
       </ScrollView>
     </KeyboardAvoidingView>
@@ -752,6 +565,17 @@ const styles = StyleSheet.create({
     marginTop: 4,
     textTransform: 'capitalize',
   },
+  hiveTypeLabel: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#fef3c7',
+    color: '#92400e',
+    fontSize: 13,
+    fontWeight: '600',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    marginTop: 8,
+  },
   section: {
     backgroundColor: '#fff',
     borderRadius: 16,
@@ -774,33 +598,19 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#1f2937',
   },
-  weatherStatus: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+  colonyGroup: {
+    paddingTop: 12,
   },
-  weatherStatusText: {
-    fontSize: 12,
-    color: '#6b7280',
+  colonyGroupDivider: {
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+    marginTop: 16,
   },
-  weatherErrorBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fef3c7',
-    padding: 8,
-    borderRadius: 8,
-    marginBottom: 12,
-    gap: 6,
-  },
-  weatherErrorText: {
-    fontSize: 12,
-    color: '#92400e',
-    flex: 1,
-  },
-  inputAuto: {
-    borderWidth: 1,
-    borderColor: '#10b981',
-    borderStyle: 'dashed',
+  colonyTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1f2937',
+    marginBottom: 10,
   },
   row: {
     flexDirection: 'row',
@@ -869,9 +679,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  checkboxRow: {
+  checkboxGrid: {
     flexDirection: 'row',
-    gap: 24,
+    flexWrap: 'wrap',
+    gap: 16,
     marginTop: 4,
   },
   checkbox: {
@@ -898,6 +709,21 @@ const styles = StyleSheet.create({
   },
   saveButtonText: {
     color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  cancelButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+    paddingVertical: 14,
+    marginTop: 10,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+  },
+  cancelButtonText: {
+    color: '#374151',
     fontSize: 16,
     fontWeight: '600',
   },

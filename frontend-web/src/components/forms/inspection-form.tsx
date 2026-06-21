@@ -23,6 +23,7 @@ import {
 interface InspectionFormProps {
   hiveId: string;
   hiveNumber: string;
+  hiveType?: string;
   apiaryLocation?: { lat?: number; lng?: number };
   onSuccess: () => void;
   onCancel: () => void;
@@ -58,19 +59,6 @@ const temperamentOptions = [
   { value: 'aggressive', label: 'Aggressiv' },
 ];
 
-const healthOptions = [
-  { value: 'healthy', label: 'Frisk', color: 'bg-green-100 text-green-800 border-green-300' },
-  { value: 'warning', label: 'Advarsel', color: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
-  { value: 'critical', label: 'Kritisk', color: 'bg-red-100 text-red-800 border-red-300' },
-];
-
-const varroaLevels = [
-  { value: 'none', label: 'Ingen' },
-  { value: 'low', label: 'Lav' },
-  { value: 'medium', label: 'Middels' },
-  { value: 'high', label: 'Høy' },
-];
-
 const commonDiseases = [
   'nosema',
   'foulbrood',
@@ -85,19 +73,42 @@ const commonPests = [
   'mice',
 ];
 
+const actionOptions = [
+  { value: 'needs_brood_box', label: 'Trenger yngelrom' },
+  { value: 'needs_super', label: 'Trenger skattekasse' },
+  { value: 'needs_split', label: 'Trenger deling' },
+  { value: 'needs_food', label: 'Trenger mat' },
+];
+
+interface ColonyFormData {
+  colonyNumber: number;
+  strength: string;
+  temperament: string;
+  queenSeen: boolean;
+  queenLaying: boolean;
+}
+
 interface PhotoPreview {
   id: string;
   file: File;
   preview: string;
 }
 
-export function InspectionForm({ hiveId, hiveNumber, apiaryLocation, onSuccess, onCancel }: InspectionFormProps) {
+export function InspectionForm({ hiveId, hiveNumber, hiveType, apiaryLocation, onSuccess, onCancel }: InspectionFormProps) {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [weatherSource, setWeatherSource] = useState<'auto' | 'manual'>('manual');
   const weatherPopulated = useRef(false);
 
   const hasLocation = !!(apiaryLocation?.lat && apiaryLocation?.lng);
+  const colonyCount = hiveType === 'double_queen' ? 2 : 1;
+  const initialColonies = Array.from({ length: colonyCount }, (_, index): ColonyFormData => ({
+    colonyNumber: index + 1,
+    strength: 'medium',
+    temperament: 'calm',
+    queenSeen: false,
+    queenLaying: true,
+  }));
 
   const { data: weatherResponse } = useQuery({
     queryKey: ['weather', 'current', apiaryLocation?.lat, apiaryLocation?.lng],
@@ -111,16 +122,8 @@ export function InspectionForm({ hiveId, hiveNumber, apiaryLocation, onSuccess, 
     temperature: '',
     windSpeed: '',
     weatherCondition: 'sunny',
-    strength: 'medium',
-    temperament: 'calm',
-    queenSeen: false,
-    queenLaying: true,
-    broodFrames: '',
-    honeyFrames: '',
-    pollenFrames: '',
-    emptyFrames: '',
-    healthStatus: 'healthy',
-    varroaLevel: 'low',
+    colonies: initialColonies,
+    actions: [] as string[],
     diseases: [] as string[],
     pests: [] as string[],
     notes: '',
@@ -168,7 +171,7 @@ export function InspectionForm({ hiveId, hiveNumber, apiaryLocation, onSuccess, 
     }
   };
 
-  const toggleArrayItem = (field: 'diseases' | 'pests', item: string) => {
+  const toggleArrayItem = (field: 'diseases' | 'pests' | 'actions', item: string) => {
     setFormData((prev) => {
       const current = prev[field];
       const updated = current.includes(item)
@@ -176,6 +179,15 @@ export function InspectionForm({ hiveId, hiveNumber, apiaryLocation, onSuccess, 
         : [...current, item];
       return { ...prev, [field]: updated };
     });
+  };
+
+  const handleColonyChange = (colonyNumber: number, field: keyof ColonyFormData, value: unknown) => {
+    setFormData((prev) => ({
+      ...prev,
+      colonies: prev.colonies.map((colony) => (
+        colony.colonyNumber === colonyNumber ? { ...colony, [field]: value } : colony
+      )),
+    }));
   };
 
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -269,6 +281,10 @@ export function InspectionForm({ hiveId, hiveNumber, apiaryLocation, onSuccess, 
       }
     }
 
+    const sharedHealthStatus = formData.diseases.length > 0 || formData.pests.length > 0
+      ? 'warning'
+      : 'healthy';
+
     createMutation.mutate({
       hiveId,
       inspectionDate: new Date(formData.inspectionDate).toISOString(),
@@ -278,23 +294,29 @@ export function InspectionForm({ hiveId, hiveNumber, apiaryLocation, onSuccess, 
         condition: formData.weatherCondition,
       },
       assessment: {
-        strength: formData.strength,
-        temperament: formData.temperament,
-        queenSeen: formData.queenSeen,
-        queenLaying: formData.queenLaying,
-      },
-      frames: {
-        brood: formData.broodFrames ? parseInt(formData.broodFrames) : undefined,
-        honey: formData.honeyFrames ? parseInt(formData.honeyFrames) : undefined,
-        pollen: formData.pollenFrames ? parseInt(formData.pollenFrames) : undefined,
-        empty: formData.emptyFrames ? parseInt(formData.emptyFrames) : undefined,
+        strength: formData.colonies[0]?.strength,
+        temperament: formData.colonies[0]?.temperament,
+        queenSeen: formData.colonies[0]?.queenSeen,
+        queenLaying: formData.colonies[0]?.queenLaying,
       },
       health: {
-        status: formData.healthStatus,
-        varroaLevel: formData.varroaLevel,
+        status: sharedHealthStatus,
         diseases: formData.diseases,
         pests: formData.pests,
       },
+      actions: formData.actions.map((actionType) => ({
+        actionType,
+        details: {},
+      })),
+      colonies: formData.colonies.map((colony) => ({
+        colonyNumber: colony.colonyNumber,
+        strength: colony.strength as 'weak' | 'medium' | 'strong',
+        temperament: colony.temperament as 'calm' | 'nervous' | 'aggressive',
+        queenSeen: colony.queenSeen,
+        queenLaying: colony.queenLaying,
+        needsFood: formData.actions.includes('needs_food'),
+        healthStatus: sharedHealthStatus,
+      })),
       notes: formData.notes || undefined,
     });
   };
@@ -382,127 +404,119 @@ export function InspectionForm({ hiveId, hiveNumber, apiaryLocation, onSuccess, 
         </div>
       </div>
 
-      {/* Assessment Section */}
+      {/* Colony Assessment Section */}
       <div className="bg-gray-50 rounded-lg p-4 space-y-4">
         <h3 className="font-medium text-gray-900 flex items-center gap-2">
           <Crown className="w-4 h-4 text-honey-500" />
-          Vurdering
+          Bifolk
         </h3>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Kolonistyrke
-          </label>
-          <div className="flex gap-2">
-            {strengthOptions.map((option) => {
-              const isSelected = formData.strength === option.value;
-              return (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => handleChange('strength', option.value)}
-                  className={`flex-1 px-3 py-2 rounded-lg border-2 transition-colors ${
-                    isSelected ? option.color : 'bg-white border-gray-200 text-gray-600'
-                  }`}
-                >
-                  {option.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        <div className="space-y-4">
+          {formData.colonies.map((colony) => (
+            <div key={colony.colonyNumber} className="rounded-lg border border-gray-200 bg-white p-4 space-y-4">
+              <h4 className="font-medium text-gray-900">
+                {colonyCount > 1 ? `Bifolk ${colony.colonyNumber}` : 'Bifolk'}
+              </h4>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Temperament
-          </label>
-          <div className="flex gap-2">
-            {temperamentOptions.map((option) => {
-              const isSelected = formData.temperament === option.value;
-              return (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => handleChange('temperament', option.value)}
-                  className={`flex-1 px-3 py-2 rounded-lg border transition-colors ${
-                    isSelected
-                      ? 'bg-honey-100 border-honey-500 text-honey-700'
-                      : 'bg-white border-gray-200 text-gray-600'
-                  }`}
-                >
-                  {option.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Styrke
+                </label>
+                <div className="flex gap-2">
+                  {strengthOptions.map((option) => {
+                    const isSelected = colony.strength === option.value;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => handleColonyChange(colony.colonyNumber, 'strength', option.value)}
+                        className={`flex-1 px-3 py-2 rounded-lg border-2 transition-colors ${
+                          isSelected ? option.color : 'bg-white border-gray-200 text-gray-600'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
 
-        <div className="flex flex-wrap gap-4">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={formData.queenSeen}
-              onChange={(e) => handleChange('queenSeen', e.target.checked)}
-              className="w-5 h-5 rounded border-gray-300 text-honey-500 focus:ring-honey-500"
-            />
-            <span className="text-sm text-gray-700">Dronning sett</span>
-          </label>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={formData.queenLaying}
-              onChange={(e) => handleChange('queenLaying', e.target.checked)}
-              className="w-5 h-5 rounded border-gray-300 text-honey-500 focus:ring-honey-500"
-            />
-            <span className="text-sm text-gray-700">Dronning legger egg</span>
-          </label>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Temperament
+                </label>
+                <div className="flex gap-2">
+                  {temperamentOptions.map((option) => {
+                    const isSelected = colony.temperament === option.value;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => handleColonyChange(colony.colonyNumber, 'temperament', option.value)}
+                        className={`flex-1 px-3 py-2 rounded-lg border transition-colors ${
+                          isSelected
+                            ? 'bg-honey-100 border-honey-500 text-honey-700'
+                            : 'bg-white border-gray-200 text-gray-600'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={colony.queenSeen}
+                    onChange={(e) => handleColonyChange(colony.colonyNumber, 'queenSeen', e.target.checked)}
+                    className="w-5 h-5 rounded border-gray-300 text-honey-500 focus:ring-honey-500"
+                  />
+                  <span className="text-sm text-gray-700">Dronning sett</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={colony.queenLaying}
+                    onChange={(e) => handleColonyChange(colony.colonyNumber, 'queenLaying', e.target.checked)}
+                    className="w-5 h-5 rounded border-gray-300 text-honey-500 focus:ring-honey-500"
+                  />
+                  <span className="text-sm text-gray-700">Dronning legger egg</span>
+                </label>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Frames Section */}
+      {/* Actions Section */}
       <div className="bg-gray-50 rounded-lg p-4 space-y-4">
         <h3 className="font-medium text-gray-900 flex items-center gap-2">
           <Layers className="w-4 h-4 text-honey-500" />
-          Rammer
+          Handling
         </h3>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Input
-            label="Yngelrammer"
-            type="number"
-            min="0"
-            max="20"
-            value={formData.broodFrames}
-            onChange={(e) => handleChange('broodFrames', e.target.value)}
-            placeholder="0"
-          />
-          <Input
-            label="Honningrammer"
-            type="number"
-            min="0"
-            max="20"
-            value={formData.honeyFrames}
-            onChange={(e) => handleChange('honeyFrames', e.target.value)}
-            placeholder="0"
-          />
-          <Input
-            label="Pollenrammer"
-            type="number"
-            min="0"
-            max="20"
-            value={formData.pollenFrames}
-            onChange={(e) => handleChange('pollenFrames', e.target.value)}
-            placeholder="0"
-          />
-          <Input
-            label="Tomme rammer"
-            type="number"
-            min="0"
-            max="20"
-            value={formData.emptyFrames}
-            onChange={(e) => handleChange('emptyFrames', e.target.value)}
-            placeholder="0"
-          />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {actionOptions.map((action) => {
+            const isSelected = formData.actions.includes(action.value);
+
+            return (
+              <button
+                key={action.value}
+                type="button"
+                onClick={() => toggleArrayItem('actions', action.value)}
+                className={`px-3 py-3 rounded-lg border text-sm font-medium transition-colors ${
+                  isSelected
+                    ? 'bg-honey-100 border-honey-500 text-honey-700'
+                    : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
+                }`}
+              >
+                {action.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -512,54 +526,6 @@ export function InspectionForm({ hiveId, hiveNumber, apiaryLocation, onSuccess, 
           <Heart className="w-4 h-4 text-honey-500" />
           Helse
         </h3>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Helsestatus
-          </label>
-          <div className="flex gap-2">
-            {healthOptions.map((option) => {
-              const isSelected = formData.healthStatus === option.value;
-              return (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => handleChange('healthStatus', option.value)}
-                  className={`flex-1 px-3 py-2 rounded-lg border-2 transition-colors ${
-                    isSelected ? option.color : 'bg-white border-gray-200 text-gray-600'
-                  }`}
-                >
-                  {option.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Varroatrykk
-          </label>
-          <div className="flex gap-2">
-            {varroaLevels.map((level) => {
-              const isSelected = formData.varroaLevel === level.value;
-              return (
-                <button
-                  key={level.value}
-                  type="button"
-                  onClick={() => handleChange('varroaLevel', level.value)}
-                  className={`flex-1 px-3 py-2 rounded-lg border transition-colors ${
-                    isSelected
-                      ? 'bg-honey-100 border-honey-500 text-honey-700'
-                      : 'bg-white border-gray-200 text-gray-600'
-                  }`}
-                >
-                  {level.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>

@@ -20,6 +20,7 @@ import {
   ChevronRight,
   X,
   AlertTriangle,
+  CheckCircle2,
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn, formatDate, getStrengthColor, getHealthColor } from '@/lib/utils';
@@ -63,11 +64,15 @@ const pestLabels: Record<string, string> = {
   mice: 'Mus',
 };
 
-const actionLabels: Record<string, string> = {
-  swarm_tendency: 'Svermetrang',
-  hunger: 'Sult',
-  space_shortage: 'Plassmangel',
-};
+const inspectionActions = [
+  { value: 'needs_brood_box', label: 'Trenger yngelrom' },
+  { value: 'needs_super', label: 'Trenger skattekasse' },
+  { value: 'needs_split', label: 'Trenger deling' },
+  { value: 'needs_food', label: 'Trenger mat' },
+  { value: 'hunger', label: 'Trenger mat' },
+  { value: 'swarm_tendency', label: 'Svermetrang' },
+  { value: 'space_shortage', label: 'Plassmangel' },
+];
 
 const conditionLabels: Record<string, string> = {
   sunny: 'Sol',
@@ -84,6 +89,15 @@ interface InspectionDetail {
   inspectionDate: string;
   weather: { temperature?: number; windSpeed?: number; condition?: string };
   assessment: { strength?: string; temperament?: string; queenSeen: boolean; queenLaying: boolean };
+  colonies?: Array<{
+    colonyNumber: number;
+    strength?: string;
+    temperament?: string;
+    queenSeen: boolean;
+    queenLaying: boolean;
+    needsFood: boolean;
+    healthStatus: string;
+  }>;
   frames: { brood: number; honey: number; pollen: number; empty: number };
   health: { status: string; varroaLevel?: string; diseases: string[]; pests: string[] };
   photos: Array<{ id: string; url: string; thumbnailUrl: string; caption?: string }>;
@@ -132,6 +146,17 @@ export default function InspectionDetailPage() {
 
   const inspection = response.data as InspectionDetail;
   const photos = inspection.photos || [];
+  const colonies = inspection.colonies && inspection.colonies.length > 0
+    ? inspection.colonies
+    : [{
+        colonyNumber: 1,
+        strength: inspection.assessment.strength,
+        temperament: inspection.assessment.temperament,
+        queenSeen: inspection.assessment.queenSeen,
+        queenLaying: inspection.assessment.queenLaying,
+        needsFood: false,
+        healthStatus: inspection.health.status,
+      }];
 
   return (
     <div className="space-y-6">
@@ -216,56 +241,78 @@ export default function InspectionDetailPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Crown className="w-5 h-5 text-honey-500" />
-              Vurdering
+              Bifolk
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {inspection.assessment.temperament && (
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-500">Temperament</span>
-                  <span className="font-medium">{temperamentLabels[inspection.assessment.temperament] || inspection.assessment.temperament}</span>
+            <div className="space-y-4">
+              {colonies.map((colony) => (
+                <div key={colony.colonyNumber} className="rounded-lg bg-gray-50 p-3">
+                  <h4 className="mb-3 font-medium text-gray-900">
+                    {colonies.length > 1 ? `Bifolk ${colony.colonyNumber}` : 'Bifolk'}
+                  </h4>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div>
+                      <span className="text-gray-500">Styrke</span>
+                      <p className="font-medium">{colony.strength ? strengthLabels[colony.strength] || colony.strength : 'Ikke vurdert'}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Temperament</span>
+                      <p className="font-medium">{colony.temperament ? temperamentLabels[colony.temperament] || colony.temperament : 'Ikke vurdert'}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Dronning</span>
+                      <p className="font-medium">
+                        {colony.queenSeen ? 'Sett' : 'Ikke sett'} · {colony.queenLaying ? 'Legger egg' : 'Legger ikke egg'}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Helsestatus</span>
+                      <p className="font-medium">{healthLabels[colony.healthStatus] || colony.healthStatus}</p>
+                    </div>
+                  </div>
                 </div>
-              )}
-              <div className="flex items-center justify-between">
-                <span className="text-gray-500">Dronning sett</span>
-                <span className="font-medium">{inspection.assessment.queenSeen ? 'Ja' : 'Nei'}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-500">Dronning legger</span>
-                <span className="font-medium">{inspection.assessment.queenLaying ? 'Ja' : 'Nei'}</span>
-              </div>
+              ))}
             </div>
           </CardContent>
         </Card>
 
-        {/* Frames */}
+        {/* Actions */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Layers className="w-5 h-5 text-honey-500" />
-              Rammer
+              Handling
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="text-center p-3 bg-amber-50 rounded-lg">
-                <p className="text-2xl font-bold text-amber-700">{inspection.frames.brood}</p>
-                <p className="text-xs text-gray-500">Yngel</p>
+            {inspection.actions.length > 0 ? (
+              <div className="grid gap-3">
+                {inspectionActions.map((action) => {
+                  const isSelected = inspection.actions.some((item) => item.actionType === action.value);
+                  return (
+                    <div
+                      key={action.value}
+                      className={cn(
+                        'flex items-center justify-between rounded-lg border px-3 py-2 text-sm',
+                        isSelected
+                          ? 'border-orange-200 bg-orange-50 text-orange-800'
+                          : 'border-gray-200 bg-gray-50 text-gray-400'
+                      )}
+                    >
+                      <span>{action.label}</span>
+                      {isSelected ? (
+                        <CheckCircle2 className="h-4 w-4 text-orange-600" />
+                      ) : (
+                        <span>Nei</span>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-              <div className="text-center p-3 bg-yellow-50 rounded-lg">
-                <p className="text-2xl font-bold text-yellow-700">{inspection.frames.honey}</p>
-                <p className="text-xs text-gray-500">Honning</p>
-              </div>
-              <div className="text-center p-3 bg-orange-50 rounded-lg">
-                <p className="text-2xl font-bold text-orange-700">{inspection.frames.pollen}</p>
-                <p className="text-xs text-gray-500">Pollen</p>
-              </div>
-              <div className="text-center p-3 bg-gray-50 rounded-lg">
-                <p className="text-2xl font-bold text-gray-700">{inspection.frames.empty}</p>
-                <p className="text-xs text-gray-500">Tomme</p>
-              </div>
-            </div>
+            ) : (
+              <p className="text-sm text-gray-400">Ingen handling registrert</p>
+            )}
           </CardContent>
         </Card>
 
@@ -322,30 +369,6 @@ export default function InspectionDetailPage() {
           </CardContent>
         </Card>
       </div>
-
-      {/* Actions */}
-      {inspection.actions.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-orange-500" />
-              Handlinger
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {inspection.actions.map((action) => (
-                <span
-                  key={action.id}
-                  className="px-3 py-1 rounded-lg text-sm font-medium bg-orange-100 text-orange-700"
-                >
-                  {actionLabels[action.actionType] || action.actionType}
-                </span>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Notes */}
       {inspection.notes && (

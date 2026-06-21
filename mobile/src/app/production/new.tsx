@@ -72,7 +72,7 @@ export default function NewProductionScreen() {
 
   const handleSave = async () => {
     if (!formData.amountKg || parseFloat(formData.amountKg) <= 0) {
-      Alert.alert('Mangler data', 'Mengde er pakrevd');
+      Alert.alert('Mangler data', 'Mengde er påkrevd');
       return;
     }
 

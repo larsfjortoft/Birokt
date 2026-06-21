@@ -1,28 +1,10 @@
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../stores/auth';
 
 export default function ProfileScreen() {
-  const { user, logout } = useAuthStore();
-
-  const handleLogout = () => {
-    Alert.alert(
-      'Logg ut',
-      'Er du sikker pa at du vil logge ut?',
-      [
-        { text: 'Avbryt', style: 'cancel' },
-        {
-          text: 'Logg ut',
-          style: 'destructive',
-          onPress: async () => {
-            await logout();
-            router.replace('/(auth)/login');
-          },
-        },
-      ]
-    );
-  };
+  const { user } = useAuthStore();
 
   return (
     <View style={styles.container}>
@@ -37,7 +19,7 @@ export default function ProfileScreen() {
           </Text>
         </View>
         <View style={styles.userInfo}>
-          <Text style={styles.userName}>{user?.name || 'Biroker'}</Text>
+          <Text style={styles.userName}>{user?.name || 'Birøkter'}</Text>
           <Text style={styles.userEmail}>{user?.email}</Text>
         </View>
       </View>
@@ -93,12 +75,6 @@ export default function ProfileScreen() {
           <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
         </TouchableOpacity>
       </View>
-
-      {/* Logout button */}
-      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} accessibilityRole="button" accessibilityLabel="Logg ut">
-        <Ionicons name="log-out-outline" size={20} color="#ef4444" />
-        <Text style={styles.logoutText}>Logg ut</Text>
-      </TouchableOpacity>
 
       {/* App version */}
       <Text style={styles.version}>Birøkt v1.0.0</Text>
@@ -182,20 +158,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     color: '#1f2937',
-  },
-  logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#fef2f2',
-    borderRadius: 12,
-    padding: 16,
-    gap: 8,
-  },
-  logoutText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#ef4444',
   },
   version: {
     textAlign: 'center',

@@ -23,8 +23,11 @@ export default function ScannerScreen() {
       const response = await hivesApi.getByQr(qrCode);
 
       if (response.data) {
-        const hive = response.data as { id: string };
-        router.push(`/hive/${hive.id}`);
+        const hive = response.data as { id: string; hiveNumber: string; hiveType?: 'single_queen' | 'double_queen' };
+        router.push({
+          pathname: '/inspection/new',
+          params: { hiveId: hive.id, hiveNumber: hive.hiveNumber, hiveType: hive.hiveType || 'single_queen' },
+        });
       } else {
         Alert.alert('Ikke funnet', 'Fant ingen kube med denne QR-koden');
       }

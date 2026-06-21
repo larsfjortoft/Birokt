@@ -104,11 +104,11 @@ export default function ApiaryDetailPage() {
     e.preventDefault();
     updateMutation.mutate({
       name: editForm.name,
-      description: editForm.description || undefined,
+      description: editForm.description || null,
       location: {
-        name: editForm.locationName || undefined,
-        lat: editForm.lat ? parseFloat(editForm.lat) : undefined,
-        lng: editForm.lng ? parseFloat(editForm.lng) : undefined,
+        name: editForm.locationName || null,
+        lat: editForm.lat ? parseFloat(editForm.lat) : null,
+        lng: editForm.lng ? parseFloat(editForm.lng) : null,
       },
       type: editForm.type,
       active: editForm.active,

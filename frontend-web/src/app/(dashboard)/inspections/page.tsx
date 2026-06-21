@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { Suspense, useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { inspectionsApi, apiariesApi, getImageUrl } from '@/lib/api';
@@ -26,8 +26,12 @@ const healthLabels: Record<string, string> = {
 
 const actionLabels: Record<string, string> = {
   swarm_tendency: 'Svermetrang',
-  hunger: 'Sult',
+  hunger: 'Trenger mat',
   space_shortage: 'Plassmangel',
+  needs_brood_box: 'Trenger yngelrom',
+  needs_super: 'Trenger skattekasse',
+  needs_split: 'Trenger deling',
+  needs_food: 'Trenger mat',
 };
 
 interface Inspection {
@@ -45,7 +49,7 @@ interface Inspection {
   createdAt: string;
 }
 
-export default function InspectionsPage() {
+function InspectionsPageContent() {
   const searchParams = useSearchParams();
   const preselectedHiveId = searchParams.get('hiveId') || '';
 
@@ -336,5 +340,13 @@ export default function InspectionsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function InspectionsPage() {
+  return (
+    <Suspense fallback={<SkeletonCard />}>
+      <InspectionsPageContent />
+    </Suspense>
   );
 }

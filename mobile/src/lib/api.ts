@@ -243,6 +243,7 @@ export const apiariesApi = {
         hiveNumber: string;
         status: string;
         strength?: string;
+        hiveType?: 'single_queen' | 'double_queen';
       }>;
     }>(`/apiaries/${id}`),
 };
@@ -257,11 +258,21 @@ export const hivesApi = {
       apiary: { id: string; name: string };
       status: string;
       strength?: string;
+      hiveType?: 'single_queen' | 'double_queen';
     }>>('/hives', params),
 
   get: (id: string) => api.get(`/hives/${id}`),
 
-  getByQr: (qrCode: string) => api.get(`/hives/qr/${qrCode}`),
+  getByQr: (qrCode: string) =>
+    api.get<{
+      id: string;
+      hiveNumber: string;
+      qrCode?: string;
+      apiary: { id: string; name: string };
+      status: string;
+      strength?: string;
+      hiveType?: 'single_queen' | 'double_queen';
+    }>(`/hives/qr/${qrCode}`),
 };
 
 // Inspections API
@@ -273,7 +284,16 @@ export const inspectionsApi = {
     assessment?: { strength?: string; temperament?: string; queenSeen?: boolean; queenLaying?: boolean };
     frames?: { brood?: number; honey?: number; pollen?: number; empty?: number };
     health?: { status?: string; varroaLevel?: string; diseases?: string[]; pests?: string[] };
-    actions?: Array<{ actionType: string }>;
+    actions?: Array<{ actionType: string; details?: Record<string, unknown> }>;
+    colonies?: Array<{
+      colonyNumber: number;
+      strength?: 'weak' | 'medium' | 'strong';
+      temperament?: 'calm' | 'nervous' | 'aggressive';
+      queenSeen?: boolean;
+      queenLaying?: boolean;
+      needsFood?: boolean;
+      healthStatus?: 'healthy' | 'warning' | 'critical';
+    }>;
     notes?: string;
   }) => api.post<{ id: string }>('/inspections', data),
 

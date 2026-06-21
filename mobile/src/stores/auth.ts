@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import * as SecureStore from 'expo-secure-store';
 import { api, authApi } from '../lib/api';
 
 interface User {
@@ -19,10 +18,16 @@ interface AuthState {
   checkAuth: () => Promise<void>;
 }
 
+const localUser: User = {
+  id: 'local',
+  email: 'local@birokt.app',
+  name: 'Birøkt',
+};
+
 export const useAuthStore = create<AuthState>((set) => ({
-  user: null,
-  isLoading: true,
-  isAuthenticated: false,
+  user: localUser,
+  isLoading: false,
+  isAuthenticated: true,
 
   login: async (email, password) => {
     set({ isLoading: true });
@@ -61,37 +66,12 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: async () => {
-    try {
-      await authApi.logout();
-    } catch {
-      // Ignore logout errors
-    }
     await api.clearTokens();
-    set({ user: null, isAuthenticated: false });
+    set({ user: localUser, isAuthenticated: true, isLoading: false });
   },
 
   checkAuth: async () => {
-    set({ isLoading: true });
-    try {
-      const token = await SecureStore.getItemAsync('accessToken');
-      if (!token) {
-        set({ isLoading: false, isAuthenticated: false, user: null });
-        return;
-      }
-
-      const response = await authApi.me();
-      if (response.data) {
-        set({
-          user: response.data,
-          isAuthenticated: true,
-          isLoading: false,
-        });
-      } else {
-        set({ isLoading: false, isAuthenticated: false, user: null });
-      }
-    } catch {
-      await api.clearTokens();
-      set({ isLoading: false, isAuthenticated: false, user: null });
-    }
+    await api.clearTokens();
+    set({ isLoading: false, isAuthenticated: true, user: localUser });
   },
 }));

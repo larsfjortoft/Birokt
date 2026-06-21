@@ -6,7 +6,7 @@ import { statsApi, apiariesApi, weatherApi } from '@/lib/api';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton, SkeletonStatCard, SkeletonCard, SkeletonList } from '@/components/ui/skeleton';
-import { MapPin, Box, ClipboardCheck, Droplet, Sun, Cloud, CloudRain, Wind, Thermometer, CloudSnow } from 'lucide-react';
+import { MapPin, Box, ClipboardCheck, AlertTriangle, Sun, Cloud, CloudRain, Wind, Thermometer, CloudSnow } from 'lucide-react';
 import Link from 'next/link';
 
 function getWeatherIcon(conditionCode: string) {
@@ -154,21 +154,23 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-amber-100 rounded-lg">
-                <Droplet className="w-6 h-6 text-amber-600" />
+        <Link href="/actions" className="block rounded-xl focus:outline-none focus:ring-2 focus:ring-honey-500">
+          <Card className="h-full transition-all hover:border-amber-300 hover:shadow-md">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-amber-100 rounded-lg">
+                  <AlertTriangle className="w-6 h-6 text-amber-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Trenger handling</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {stats?.hives.needsAction || 0}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm text-gray-500">Honning i år</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {stats?.production.honeyKg || 0} kg
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
       {/* Health overview */}

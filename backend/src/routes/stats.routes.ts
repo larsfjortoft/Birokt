@@ -36,6 +36,32 @@ const hiveStatsQuerySchema = z.object({
   year: z.string().transform(Number).pipe(z.number().int().min(2000).max(2100)).optional(),
 });
 
+function parseMetadata(metadata: string | null | undefined): Record<string, unknown> {
+  try {
+    return metadata ? JSON.parse(metadata) : {};
+  } catch {
+    return {};
+  }
+}
+
+function getFoodActionsFromMetadata(metadata: string | null | undefined) {
+  const parsed = parseMetadata(metadata);
+  if (!Array.isArray(parsed.colonies)) return [];
+
+  return parsed.colonies
+    .filter((colony): colony is { colonyNumber: number; needsFood: boolean } => (
+      typeof colony === 'object'
+      && colony !== null
+      && 'needsFood' in colony
+      && Boolean((colony as { needsFood?: unknown }).needsFood)
+    ))
+    .map((colony) => ({
+      id: `needs-food-${colony.colonyNumber}`,
+      actionType: 'needs_food',
+      details: { colonyNumber: colony.colonyNumber },
+    }));
+}
+
 // GET /stats/overview - Get overview statistics
 router.get('/overview', validateQuery(overviewQuerySchema), cacheResponse(120), async (req: Request, res: Response) => {
   try {
@@ -91,6 +117,9 @@ router.get('/overview', validateQuery(overviewQuerySchema), cacheResponse(120), 
           lte: yearEnd,
         },
       },
+      include: {
+        actions: true,
+      },
     });
 
     // Get this month's inspections
@@ -120,6 +149,10 @@ router.get('/overview', validateQuery(overviewQuerySchema), cacheResponse(120), 
       else if (inspection.healthStatus === 'warning') healthStats.warning++;
       else if (inspection.healthStatus === 'critical') healthStats.critical++;
     }
+
+    const hivesNeedingAction = Array.from(latestInspectionsByHive.values()).filter(
+      inspection => inspection.actions.length > 0 || getFoodActionsFromMetadata(inspection.metadata).length > 0
+    ).length;
 
     // Get production stats
     const production = await prisma.production.aggregate({
@@ -198,6 +231,7 @@ router.get('/overview', validateQuery(overviewQuerySchema), cacheResponse(120), 
       hives: {
         ...hiveStats,
         byHealth: healthStats,
+        needsAction: hivesNeedingAction,
       },
       inspections: {
         total: inspections.length,
@@ -217,6 +251,95 @@ router.get('/overview', validateQuery(overviewQuerySchema), cacheResponse(120), 
   } catch (error) {
     console.error('Get overview stats error:', error);
     sendError(res, ErrorCodes.INTERNAL_ERROR, 'Failed to get statistics', 500);
+  }
+});
+
+// GET /stats/actions-needed - List hives where the latest inspection has actions
+router.get('/actions-needed', validateQuery(overviewQuerySchema), async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const year = Number(req.query.year as string) || new Date().getFullYear();
+    const apiaryId = req.query.apiaryId as string | undefined;
+
+    const userApiaries = await prisma.userApiary.findMany({
+      where: {
+        userId,
+        ...(apiaryId && { apiaryId }),
+      },
+      select: { apiaryId: true },
+    });
+    const apiaryIds = userApiaries.map(ua => ua.apiaryId);
+
+    const hives = await prisma.hive.findMany({
+      where: { apiaryId: { in: apiaryIds } },
+      select: { id: true },
+    });
+    const hiveIds = hives.map(h => h.id);
+
+    const yearStart = new Date(year, 0, 1);
+    const yearEnd = new Date(year, 11, 31, 23, 59, 59);
+
+    const inspections = await prisma.inspection.findMany({
+      where: {
+        hiveId: { in: hiveIds },
+        inspectionDate: {
+          gte: yearStart,
+          lte: yearEnd,
+        },
+      },
+      include: {
+        actions: true,
+        hive: {
+          select: {
+            id: true,
+            hiveNumber: true,
+            apiary: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { inspectionDate: 'desc' },
+    });
+
+    const latestInspectionsByHive = new Map<string, typeof inspections[0]>();
+    for (const inspection of inspections) {
+      if (!latestInspectionsByHive.has(inspection.hiveId)) {
+        latestInspectionsByHive.set(inspection.hiveId, inspection);
+      }
+    }
+
+    const result = Array.from(latestInspectionsByHive.values())
+      .filter(inspection => inspection.actions.length > 0 || getFoodActionsFromMetadata(inspection.metadata).length > 0)
+      .map(inspection => ({
+        hive: {
+          id: inspection.hive.id,
+          hiveNumber: inspection.hive.hiveNumber,
+          apiary: inspection.hive.apiary,
+        },
+        inspection: {
+          id: inspection.id,
+          inspectionDate: inspection.inspectionDate,
+          healthStatus: inspection.healthStatus,
+          strength: inspection.strength,
+        },
+        actions: [
+          ...inspection.actions.map(action => ({
+            id: action.id,
+            actionType: action.actionType,
+            details: JSON.parse(action.details || '{}'),
+          })),
+          ...getFoodActionsFromMetadata(inspection.metadata),
+        ],
+      }));
+
+    sendSuccess(res, { year, hives: result });
+  } catch (error) {
+    console.error('Get actions needed error:', error);
+    sendError(res, ErrorCodes.INTERNAL_ERROR, 'Failed to get actions needed', 500);
   }
 });
 

@@ -30,7 +30,7 @@ describe('Hives API', () => {
         .send({
           apiaryId: apiary.id,
           hiveNumber: 'H-001',
-          hiveType: 'langstroth',
+          hiveType: 'single_queen',
           status: 'active',
           queen: {
             year: 2024,
@@ -43,7 +43,7 @@ describe('Hives API', () => {
 
       expect(response.body.success).toBe(true);
       expect(response.body.data.hiveNumber).toBe('H-001');
-      expect(response.body.data.hiveType).toBe('langstroth');
+      expect(response.body.data.hiveType).toBe('single_queen');
       expect(response.body.data.status).toBe('active');
     });
 

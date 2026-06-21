@@ -26,11 +26,11 @@ const createApiarySchema = z.object({
 
 const updateApiarySchema = z.object({
   name: z.string().trim().min(1).max(255).optional(),
-  description: z.string().trim().optional(),
+  description: z.string().trim().nullable().optional(),
   location: z.object({
-    name: z.string().trim().optional(),
-    lat: z.number().min(-90).max(90).optional(),
-    lng: z.number().min(-180).max(180).optional(),
+    name: z.string().trim().nullable().optional(),
+    lat: z.number().min(-90).max(90).nullable().optional(),
+    lng: z.number().min(-180).max(180).nullable().optional(),
   }).optional(),
   type: z.enum(['permanent', 'seasonal', 'heather_route']).optional(),
   active: z.boolean().optional(),
@@ -226,6 +226,7 @@ router.get('/:id', validateParams(idParamSchema), cacheResponse(60), async (req:
         hiveNumber: hive.hiveNumber,
         status: hive.status,
         strength: hive.strength,
+        hiveType: hive.hiveType,
         lastInspection: hive.inspections[0]?.inspectionDate || null,
       })),
       collaborators: apiary.userApiaries.map(ua => ({

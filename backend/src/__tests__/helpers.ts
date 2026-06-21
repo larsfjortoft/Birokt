@@ -75,12 +75,13 @@ export async function createTestApiary(user: TestUser, data?: { name?: string })
 
 export async function createTestHive(
   apiary: { id: string },
-  data?: { hiveNumber?: string }
+  data?: { hiveNumber?: string; hiveType?: 'single_queen' | 'double_queen' }
 ) {
   return prisma.hive.create({
     data: {
       apiaryId: apiary.id,
       hiveNumber: data?.hiveNumber || '1',
+      hiveType: data?.hiveType || 'single_queen',
       status: 'active',
     },
   });

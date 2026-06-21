@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { hivesApi, apiariesApi } from '@/lib/api';
@@ -14,7 +14,19 @@ import { cn, formatDate, getHealthColor, getStrengthColor, getStatusColor } from
 import toast from 'react-hot-toast';
 import { SkeletonCard } from '@/components/ui/skeleton';
 
-export default function HivesPage() {
+const queenSetupLabels: Record<string, string> = {
+  single_queen: 'Én dronning',
+  double_queen: 'To dronninger',
+  langstroth: 'Én dronning',
+  topbar: 'Én dronning',
+  warre: 'Én dronning',
+};
+
+function getQueenSetupLabel(hiveType: string | undefined) {
+  return queenSetupLabels[hiveType || ''] || 'Én dronning';
+}
+
+function HivesPageContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -29,7 +41,7 @@ export default function HivesPage() {
   const [newHive, setNewHive] = useState({
     apiaryId: preselectedApiaryId || '',
     hiveNumber: '',
-    hiveType: 'langstroth',
+    hiveType: 'single_queen',
   });
   const updateFilter = (key: 'apiaryId' | 'status' | 'strength' | 'healthStatus', value: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -66,7 +78,7 @@ export default function HivesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hives'] });
       setShowCreateModal(false);
-      setNewHive({ apiaryId: '', hiveNumber: '', hiveType: 'langstroth' });
+      setNewHive({ apiaryId: '', hiveNumber: '', hiveType: 'single_queen' });
       toast.success('Kube opprettet!');
     },
     onError: (err: unknown) => {
@@ -84,7 +96,7 @@ export default function HivesPage() {
     createMutation.mutate({
       apiaryId: newHive.apiaryId,
       hiveNumber: newHive.hiveNumber,
-      hiveType: newHive.hiveType as 'langstroth' | 'topbar' | 'warre',
+      hiveType: newHive.hiveType as 'single_queen' | 'double_queen',
     });
   };
 
@@ -223,7 +235,7 @@ export default function HivesPage() {
 
                   <div className="grid grid-cols-2 gap-3 rounded-lg bg-gray-50 p-3 text-sm text-gray-600">
                     <div>
-                      <p className="text-xs uppercase tracking-wide text-gray-400">Kasser</p>
+                      <p className="text-xs uppercase tracking-wide text-gray-400">Antall yngelrom</p>
                       <p className="mt-1 font-medium text-gray-900">
                         {hive.boxCount} {hive.boxCount === 1 ? 'kasse' : 'kasser'}
                       </p>
@@ -231,6 +243,10 @@ export default function HivesPage() {
                     <div>
                       <p className="text-xs uppercase tracking-wide text-gray-400">Inspeksjoner</p>
                       <p className="mt-1 font-medium text-gray-900">{hive.stats.totalInspections}</p>
+                    </div>
+                    <div className="col-span-2">
+                      <p className="text-xs uppercase tracking-wide text-gray-400">Dronninger</p>
+                      <p className="mt-1 font-medium text-gray-900">{getQueenSetupLabel(hive.hiveType)}</p>
                     </div>
                     {hive.queen?.year && (
                       <div className="col-span-2">
@@ -294,16 +310,15 @@ export default function HivesPage() {
                 />
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Kubetype
+                    Dronninger
                   </label>
                   <select
                     value={newHive.hiveType}
                     onChange={(e) => setNewHive({ ...newHive, hiveType: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-honey-500"
                   >
-                    <option value="langstroth">Langstroth</option>
-                    <option value="topbar">Top Bar</option>
-                    <option value="warre">Warré</option>
+                    <option value="single_queen">Én dronning</option>
+                    <option value="double_queen">To dronninger</option>
                   </select>
                 </div>
               </CardContent>
@@ -324,5 +339,13 @@ export default function HivesPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function HivesPage() {
+  return (
+    <Suspense fallback={<SkeletonCard />}>
+      <HivesPageContent />
+    </Suspense>
   );
 }

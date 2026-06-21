@@ -109,7 +109,7 @@ model Hive {
   qrCode             String?  @unique @map("qr_code")
   status             String   @default("active") // active, nuc, inactive, dead, sold
   strength           String?  // weak, medium, strong
-  hiveType           String   @default("langstroth") @map("hive_type") // langstroth, topbar, warre
+  hiveType           String   @default("single_queen") @map("hive_type") // single_queen, double_queen
   boxCount           Int      @default(1) @map("box_count")
 
   // Queen information

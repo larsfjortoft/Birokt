@@ -319,7 +319,11 @@ function CreateFeedingModal({
           </label>
           <select
             value={formData.feedType}
-            onChange={(e) => setFormData((prev) => ({ ...prev, feedType: e.target.value }))}
+            onChange={(e) => setFormData((prev) => ({
+              ...prev,
+              feedType: e.target.value,
+              sugarConcentration: e.target.value === 'ready_feed' ? '75' : prev.sugarConcentration,
+            }))}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-honey-500"
           >
             {feedTypes.map((type) => (
@@ -340,8 +344,8 @@ function CreateFeedingModal({
           required
         />
 
-        {/* Sugar concentration (only for syrup) */}
-        {formData.feedType === 'sugar_syrup' && (
+        {/* Sugar concentration */}
+        {(formData.feedType === 'sugar_syrup' || formData.feedType === 'ready_feed') && (
           <Input
             label="Sukkerkonsentrasjon (%)"
             type="number"
@@ -349,7 +353,7 @@ function CreateFeedingModal({
             max="100"
             value={formData.sugarConcentration}
             onChange={(e) => setFormData((prev) => ({ ...prev, sugarConcentration: e.target.value }))}
-            placeholder="F.eks. 60"
+            placeholder={formData.feedType === 'ready_feed' ? '75' : 'F.eks. 60'}
           />
         )}
 

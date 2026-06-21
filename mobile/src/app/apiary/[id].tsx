@@ -104,14 +104,38 @@ export default function ApiaryDetailScreen() {
   if (isLoading || !apiary) {
     return (
       <View style={styles.centered}>
-        <Text style={styles.loadingText}>Laster bigard...</Text>
+        <Text style={styles.loadingText}>Laster bigård...</Text>
       </View>
     );
   }
 
+  const closeApiary = () => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+
+    router.replace('/(tabs)/home');
+  };
+
   return (
     <>
-      <Stack.Screen options={{ title: apiary.name }} />
+      <Stack.Screen
+        options={{
+          title: apiary.name,
+          headerLeft: () => (
+            <TouchableOpacity
+              style={styles.headerBackButton}
+              onPress={closeApiary}
+              accessibilityRole="button"
+              accessibilityLabel="Tilbake"
+            >
+              <Ionicons name="arrow-back" size={22} color="#fff" />
+              <Text style={styles.headerBackText}>Tilbake</Text>
+            </TouchableOpacity>
+          ),
+        }}
+      />
       <View style={styles.container}>
         {/* Header info */}
         <View style={styles.header}>
@@ -165,7 +189,7 @@ export default function ApiaryDetailScreen() {
           ListEmptyComponent={
             <View style={styles.empty}>
               <Ionicons name="cube-outline" size={48} color="#d1d5db" />
-              <Text style={styles.emptyText}>Ingen kuber i denne bigarden</Text>
+              <Text style={styles.emptyText}>Ingen kuber i denne bigården</Text>
             </View>
           }
         />
@@ -187,6 +211,17 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 16,
     color: '#6b7280',
+  },
+  headerBackButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingRight: 8,
+  },
+  headerBackText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   header: {
     backgroundColor: '#fff',

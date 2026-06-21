@@ -11,10 +11,12 @@ const router = Router();
 router.use(authenticate);
 
 // Validation schemas
+const hiveTypeSchema = z.enum(['single_queen', 'double_queen']);
+
 const createHiveSchema = z.object({
   apiaryId: z.string().uuid(),
   hiveNumber: z.string().trim().min(1).max(50),
-  hiveType: z.enum(['langstroth', 'topbar', 'warre']).default('langstroth'),
+  hiveType: hiveTypeSchema.default('single_queen'),
   status: z.enum(['active', 'nuc', 'inactive', 'dead', 'sold']).default('active'),
   queen: z.object({
     year: z.number().int().min(2000).max(2100).optional(),
@@ -27,7 +29,7 @@ const createHiveSchema = z.object({
 
 const updateHiveSchema = z.object({
   hiveNumber: z.string().trim().min(1).max(50).optional(),
-  hiveType: z.enum(['langstroth', 'topbar', 'warre']).optional(),
+  hiveType: hiveTypeSchema.optional(),
   status: z.enum(['active', 'nuc', 'inactive', 'dead', 'sold']).optional(),
   strength: z.enum(['weak', 'medium', 'strong']).optional(),
   boxCount: z.number().int().min(1).max(10).optional(),
@@ -270,8 +272,13 @@ router.get('/:id', validateParams(idParamSchema), async (req: Request, res: Resp
             id: true,
             inspectionDate: true,
             strength: true,
+            temperament: true,
+            queenSeen: true,
+            queenLaying: true,
             healthStatus: true,
             notes: true,
+            metadata: true,
+            actions: true,
           },
         },
         treatments: {
@@ -333,7 +340,38 @@ router.get('/:id', validateParams(idParamSchema), async (req: Request, res: Resp
         brood: hive.currentBroodFrames,
         honey: hive.currentHoneyFrames,
       },
-      inspections: hive.inspections,
+      inspections: hive.inspections.map(inspection => ({
+        id: inspection.id,
+        inspectionDate: inspection.inspectionDate,
+        strength: inspection.strength,
+        temperament: inspection.temperament,
+        queenSeen: inspection.queenSeen,
+        queenLaying: inspection.queenLaying,
+        healthStatus: inspection.healthStatus,
+        notes: inspection.notes,
+        colonies: (() => {
+          try {
+            const metadata = JSON.parse(inspection.metadata || '{}');
+            if (Array.isArray(metadata.colonies)) return metadata.colonies;
+          } catch {
+            // Fall back to the flat inspection fields below.
+          }
+          return [{
+            colonyNumber: 1,
+            strength: inspection.strength,
+            temperament: inspection.temperament,
+            queenSeen: inspection.queenSeen,
+            queenLaying: inspection.queenLaying,
+            needsFood: false,
+            healthStatus: inspection.healthStatus,
+          }];
+        })(),
+        actions: inspection.actions.map(action => ({
+          id: action.id,
+          actionType: action.actionType,
+          details: JSON.parse(action.details || '{}'),
+        })),
+      })),
       treatments: hive.treatments.map(t => ({
         id: t.id,
         date: t.treatmentDate,
@@ -391,6 +429,7 @@ router.get('/qr/:qrCode', validateParams(qrCodeParamSchema), async (req: Request
       apiary: hive.apiary,
       status: hive.status,
       strength: hive.strength,
+      hiveType: hive.hiveType,
     });
   } catch (error) {
     console.error('Get hive by QR error:', error);

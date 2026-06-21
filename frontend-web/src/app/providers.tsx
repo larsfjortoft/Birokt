@@ -1,10 +1,12 @@
 'use client';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Toaster } from 'react-hot-toast';
+import { useThemeStore } from '@/stores/theme';
 
 export function Providers({ children }: { children: React.ReactNode }) {
+  const { initializeTheme, theme } = useThemeStore();
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -17,6 +19,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
       })
   );
 
+  useEffect(() => {
+    initializeTheme();
+  }, [initializeTheme]);
+
   return (
     <QueryClientProvider client={queryClient}>
       {children}
@@ -26,8 +32,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
           duration: 4000,
           style: {
             borderRadius: '10px',
-            background: '#1f2937',
+            background: theme === 'dark' ? '#111827' : '#1f2937',
             color: '#fff',
+            border: theme === 'dark' ? '1px solid #374151' : undefined,
           },
           success: {
             iconTheme: {

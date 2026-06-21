@@ -1,9 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { useAuthStore } from '@/stores/auth';
 import {
   LayoutDashboard,
   MapPin,
@@ -18,7 +17,6 @@ import {
   FileText,
   BarChart3,
   Settings,
-  LogOut,
   Menu,
   X,
 } from 'lucide-react';
@@ -46,37 +44,14 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const router = useRouter();
   const pathname = usePathname();
-  const { user, isLoading, isAuthenticated, checkAuth, logout } = useAuthStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-    checkAuth();
-  }, [checkAuth]);
-
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.push('/login');
+    if (sidebarOpen) {
+      setSidebarOpen(false);
     }
-  }, [isLoading, isAuthenticated, router]);
-
-  const handleLogout = async () => {
-    await logout();
-    router.push('/login');
-  };
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-honey-500"></div>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return null;
-  }
+  }, [pathname]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -131,24 +106,15 @@ export default function DashboardLayout({
         </nav>
 
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200">
-          <div className="flex items-center gap-3 mb-3">
+          <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-honey-100 rounded-full flex items-center justify-center">
-              <span className="text-honey-700 font-medium">
-                {user?.name?.charAt(0).toUpperCase()}
-              </span>
+              <span className="text-honey-700 font-medium">B</span>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">{user?.name}</p>
-              <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+              <p className="text-sm font-medium text-gray-900 truncate">Birøkt</p>
+              <p className="text-xs text-gray-500 truncate">Lokal app</p>
             </div>
           </div>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <LogOut className="w-4 h-4" />
-            Logg ut
-          </button>
         </div>
       </aside>
 

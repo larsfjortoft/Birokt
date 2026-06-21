@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyToken, DecodedToken } from '../utils/jwt.js';
 import { sendError, ErrorCodes } from '../utils/response.js';
+import { prisma } from '../utils/prisma.js';
 
 // Extend Express Request type to include user
 declare global {
@@ -14,16 +15,36 @@ declare global {
   }
 }
 
-export function authenticate(req: Request, res: Response, next: NextFunction): void {
+async function getLocalUser(): Promise<{ id: string; email: string }> {
+  const existingUser = await prisma.user.findFirst({
+    orderBy: { createdAt: 'asc' },
+    select: { id: true, email: true },
+  });
+
+  if (existingUser) {
+    return existingUser;
+  }
+
+  return prisma.user.create({
+    data: {
+      email: 'local@birokt.app',
+      name: 'Birøkt',
+      passwordHash: 'auth-disabled',
+    },
+    select: { id: true, email: true },
+  });
+}
+
+async function attachLocalUser(req: Request): Promise<void> {
+  req.user = await getLocalUser();
+}
+
+export async function authenticate(req: Request, res: Response, next: NextFunction): Promise<void> {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    sendError(
-      res,
-      ErrorCodes.AUTHENTICATION_REQUIRED,
-      'Authentication token is required',
-      401
-    );
+    await attachLocalUser(req);
+    next();
     return;
   }
 
@@ -52,29 +73,22 @@ export function authenticate(req: Request, res: Response, next: NextFunction): v
     next();
   } catch (error) {
     if (error instanceof Error && error.name === 'TokenExpiredError') {
-      sendError(
-        res,
-        ErrorCodes.AUTHENTICATION_REQUIRED,
-        'Token has expired',
-        401
-      );
+      await attachLocalUser(req);
+      next();
       return;
     }
 
-    sendError(
-      res,
-      ErrorCodes.AUTHENTICATION_REQUIRED,
-      'Invalid authentication token',
-      401
-    );
+    await attachLocalUser(req);
+    next();
   }
 }
 
 // Optional authentication - doesn't fail if no token
-export function optionalAuth(req: Request, res: Response, next: NextFunction): void {
+export async function optionalAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    await attachLocalUser(req);
     next();
     return;
   }
@@ -91,7 +105,7 @@ export function optionalAuth(req: Request, res: Response, next: NextFunction): v
       };
     }
   } catch {
-    // Ignore errors for optional auth
+    await attachLocalUser(req);
   }
 
   next();

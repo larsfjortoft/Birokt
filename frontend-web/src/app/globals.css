@@ -7,6 +7,11 @@
   --background-rgb: 249, 250, 251;
 }
 
+.dark {
+  --foreground-rgb: 229, 231, 235;
+  --background-rgb: 15, 23, 42;
+}
+
 body {
   color: rgb(var(--foreground-rgb));
   background: rgb(var(--background-rgb));
@@ -14,6 +19,75 @@ body {
 
 .app-shell {
   font-family: 'Segoe UI', 'Noto Sans', 'Helvetica Neue', Arial, sans-serif;
+}
+
+.dark .bg-gray-50 {
+  background-color: #0f172a;
+}
+
+.dark .bg-white,
+.dark .bg-gray-100,
+.dark .bg-gray-200,
+.dark .bg-honey-50 {
+  background-color: #111827;
+}
+
+.dark .bg-honey-100 {
+  background-color: #3f2f10;
+}
+
+.dark .hover\:bg-gray-50:hover,
+.dark .hover\:bg-gray-100:hover,
+.dark .hover\:bg-gray-200:hover {
+  background-color: #1f2937;
+}
+
+.dark .text-gray-900,
+.dark .text-gray-800,
+.dark .text-gray-700 {
+  color: #f3f4f6;
+}
+
+.dark .text-gray-600,
+.dark .text-gray-500,
+.dark .text-gray-400 {
+  color: #cbd5e1;
+}
+
+.dark .text-honey-700 {
+  color: #fcd34d;
+}
+
+.dark .border-gray-100,
+.dark .border-gray-200,
+.dark .border-gray-300 {
+  border-color: #334155;
+}
+
+.dark input,
+.dark textarea,
+.dark select {
+  background-color: #111827;
+  color: #f8fafc;
+  border-color: #475569;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #94a3b8;
+}
+
+.dark input:disabled,
+.dark textarea:disabled,
+.dark select:disabled {
+  background-color: #1f2937;
+  color: #94a3b8;
+}
+
+.dark .shadow-sm,
+.dark .shadow-md,
+.dark .shadow-xl {
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
 }
 
 /* Custom scrollbar */
@@ -34,5 +108,17 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #a1a1a1;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #475569;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
 }
 

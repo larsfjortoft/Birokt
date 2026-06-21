@@ -9,9 +9,34 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Modal } from '@/components/ui/modal';
 import { InspectionForm } from '@/components/forms/inspection-form';
+import { HiveLabelDownloads } from '@/components/HiveLabelDownloads';
 import { ArrowLeft, MapPin, Calendar, Crown, Layers, Plus, Camera, Star } from 'lucide-react';
 import Link from 'next/link';
 import { formatDate, getStrengthColor, getHealthColor, getQueenColorHex } from '@/lib/utils';
+
+const actionLabels: Record<string, string> = {
+  needs_brood_box: 'Trenger yngelrom',
+  needs_super: 'Trenger skattekasse',
+  needs_split: 'Trenger deling',
+  needs_food: 'Trenger mat',
+  hunger: 'Trenger mat',
+  swarm_tendency: 'Svermetrang',
+  space_shortage: 'Plassmangel',
+};
+
+const hiveTypeLabels: Record<string, string> = {
+  single_queen: 'Én dronning',
+  double_queen: 'To dronninger',
+  langstroth: 'Én dronning',
+  topbar: 'Én dronning',
+  warre: 'Én dronning',
+};
+
+const temperamentLabels: Record<string, string> = {
+  calm: 'Rolig',
+  nervous: 'Nervøs',
+  aggressive: 'Aggressiv',
+};
 
 export default function HiveDetailPage() {
   const params = useParams();
@@ -66,13 +91,40 @@ export default function HiveDetailPage() {
     boxCount: number;
     queen: { year?: number; marked: boolean; color?: string; race?: string };
     currentFrames: { brood: number; honey: number };
-    inspections: Array<{ id: string; inspectionDate: string; strength?: string; healthStatus: string; notes?: string }>;
+    inspections: Array<{
+      id: string;
+      inspectionDate: string;
+      strength?: string;
+      healthStatus: string;
+      notes?: string;
+      colonies?: Array<{
+        colonyNumber: number;
+        strength?: string;
+        temperament?: string;
+        queenSeen: boolean;
+        queenLaying: boolean;
+        needsFood: boolean;
+        healthStatus: string;
+      }>;
+      actions?: Array<{ id: string; actionType: string; details?: Record<string, unknown> }>;
+    }>;
     treatments: Array<{ id: string; date: string; product: string; withholdingEnd?: string }>;
     stats: { totalInspections: number; totalTreatments: number; totalFeedings: number };
     notes?: string;
     createdAt: string;
   };
-  const currentHealthStatus = hive.inspections[0]?.healthStatus;
+  const latestInspection = hive.inspections[0];
+  const currentHealthStatus = latestInspection?.healthStatus;
+  const currentActions = hive.inspections[0]?.actions || [];
+  const bifolkCount = hive.hiveType === 'double_queen' ? 2 : 1;
+  const bifolk = Array.from({ length: bifolkCount }, (_, index) => ({
+    name: bifolkCount > 1 ? `Bifolk ${index + 1}` : 'Bifolk',
+    ...(latestInspection?.colonies?.find((colony) => colony.colonyNumber === index + 1) || {}),
+    strength: latestInspection?.colonies?.find((colony) => colony.colonyNumber === index + 1)?.strength
+      || (index === 0 ? latestInspection?.strength || hive.strength : undefined),
+    healthStatus: latestInspection?.colonies?.find((colony) => colony.colonyNumber === index + 1)?.healthStatus
+      || (index === 0 ? currentHealthStatus : undefined),
+  }));
 
   return (
     <div className="space-y-6">
@@ -104,8 +156,28 @@ export default function HiveDetailPage() {
         </Button>
       </div>
 
+      {hive.qrCode && (
+        <Card>
+          <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="font-medium text-gray-900">Kubeetikett</p>
+              <p className="text-sm text-gray-500">QR-koden starter en ny inspeksjon for denne kuben ved skanning.</p>
+            </div>
+            <HiveLabelDownloads hiveNumber={hive.hiveNumber} qrCode={hive.qrCode} />
+          </CardContent>
+        </Card>
+      )}
+
       {/* Quick stats */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-sm text-gray-500">Kubetype</p>
+            <p className="text-lg font-semibold text-gray-900 mt-1">
+              {hiveTypeLabels[hive.hiveType] || hive.hiveType}
+            </p>
+          </CardContent>
+        </Card>
         <Card>
           <CardContent className="pt-4">
             <p className="text-sm text-gray-500">Status</p>
@@ -119,40 +191,62 @@ export default function HiveDetailPage() {
         </Card>
         <Card>
           <CardContent className="pt-4">
-            <p className="text-sm text-gray-500">Styrke</p>
-            {hive.strength ? (
-              <span className={`inline-block px-2 py-1 mt-1 rounded text-xs font-medium ${getStrengthColor(hive.strength)}`}>
-                {hive.strength === 'strong' ? 'Sterk' : hive.strength === 'medium' ? 'Medium' : 'Svak'}
-              </span>
-            ) : (
-              <p className="text-gray-400 text-sm mt-1">Ikke vurdert</p>
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <p className="text-sm text-gray-500">Helsetilstand</p>
-            {currentHealthStatus ? (
-              <span className={`inline-block px-2 py-1 mt-1 rounded text-xs font-medium ${getHealthColor(currentHealthStatus)}`}>
-                {currentHealthStatus === 'healthy' ? 'Frisk' : currentHealthStatus === 'warning' ? 'Advarsel' : 'Kritisk'}
-              </span>
-            ) : (
-              <p className="text-gray-400 text-sm mt-1">Ikke vurdert</p>
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <p className="text-sm text-gray-500">Kasser</p>
+            <p className="text-sm text-gray-500">Antall yngelrom</p>
             <p className="text-lg font-semibold text-gray-900 mt-1">{hive.boxCount}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-4">
-            <p className="text-sm text-gray-500">Inspeksjoner</p>
-            <p className="text-lg font-semibold text-gray-900 mt-1">{hive.stats.totalInspections}</p>
+            <p className="text-sm text-gray-500">Skattekasser</p>
+            <p className="text-lg font-semibold text-gray-900 mt-1">{hive.currentFrames.honey}</p>
           </CardContent>
         </Card>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {bifolk.map((colony) => (
+          <Card key={colony.name}>
+            <CardHeader>
+              <CardTitle>{colony.name}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <p className="text-sm text-gray-500">Styrke</p>
+                  {colony.strength ? (
+                    <span className={`inline-block px-2 py-1 mt-1 rounded text-xs font-medium ${getStrengthColor(colony.strength)}`}>
+                      {colony.strength === 'strong' ? 'Sterk' : colony.strength === 'medium' ? 'Medium' : 'Svak'}
+                    </span>
+                  ) : (
+                    <p className="text-gray-400 text-sm mt-1">Ikke vurdert</p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Helsetilstand</p>
+                  {colony.healthStatus ? (
+                    <span className={`inline-block px-2 py-1 mt-1 rounded text-xs font-medium ${getHealthColor(colony.healthStatus)}`}>
+                      {colony.healthStatus === 'healthy' ? 'Frisk' : colony.healthStatus === 'warning' ? 'Advarsel' : 'Kritisk'}
+                    </span>
+                  ) : (
+                    <p className="text-gray-400 text-sm mt-1">Ikke vurdert</p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Temperament</p>
+                  <p className="mt-1 text-sm font-medium text-gray-900">
+                    {colony.temperament ? temperamentLabels[colony.temperament] || colony.temperament : 'Ikke vurdert'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Dronning</p>
+                  <p className="mt-1 text-sm font-medium text-gray-900">
+                    {colony.queenSeen ? 'Sett' : 'Ikke sett'} · {colony.queenLaying ? 'Legger egg' : 'Legger ikke egg'}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -269,25 +363,26 @@ export default function HiveDetailPage() {
           </CardContent>
         </Card>
 
-        {/* Frame counts */}
+        {/* Actions */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Layers className="w-5 h-5 text-honey-500" />
-              Rammer
+              Handling
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-500">Yngelrammer</span>
-                <span className="font-medium">{hive.currentFrames.brood}</span>
+            {currentActions.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {currentActions.map((action) => (
+                  <Badge key={action.id} variant="warning">
+                    {actionLabels[action.actionType] || action.actionType}
+                  </Badge>
+                ))}
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-500">Honningrammer</span>
-                <span className="font-medium">{hive.currentFrames.honey}</span>
-              </div>
-            </div>
+            ) : (
+              <p className="text-sm text-gray-500">Ingen handling registrert</p>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -428,6 +523,7 @@ export default function HiveDetailPage() {
         <InspectionForm
           hiveId={hiveId}
           hiveNumber={hive.hiveNumber}
+          hiveType={hive.hiveType}
           apiaryLocation={hive.apiary.location}
           onSuccess={() => setShowInspectionModal(false)}
           onCancel={() => setShowInspectionModal(false)}

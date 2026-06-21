@@ -5,11 +5,9 @@ import { StatusBar } from 'expo-status-bar';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAuthStore } from '../stores/auth';
 import { initDatabase } from '../services/database';
-import { registerForPushNotifications, setupNotificationListeners } from '../services/notifications';
 import { OfflineIndicator } from '../components/OfflineIndicator';
 import { ErrorBoundary } from '../components/ErrorBoundary';
-import { initSentry, logError, setUserContext } from '../lib/sentry';
-import { fullSync } from '../services/syncManager';
+import { initSentry, setUserContext } from '../lib/sentry';
 import * as SplashScreen from 'expo-splash-screen';
 
 initSentry();
@@ -47,17 +45,30 @@ export default function RootLayout() {
     init();
   }, []);
 
-  // Register push notifications after auth and sync Sentry user context
+  // Register push notifications after real auth and sync Sentry user context
   const { isAuthenticated, user } = useAuthStore();
   useEffect(() => {
     if (isAuthenticated && user) {
       setUserContext(user);
-      registerForPushNotifications();
-      fullSync().catch((error) => {
-        logError(error, { context: 'startupFullSync' });
-      });
-      const cleanup = setupNotificationListeners();
-      return cleanup;
+      if (user.id !== 'local') {
+        let cleanup: (() => void) | undefined;
+
+        try {
+          const { registerForPushNotifications, setupNotificationListeners } = require('../services/notifications');
+          const { fullSync } = require('../services/syncManager');
+          const { logError } = require('../lib/sentry');
+
+          registerForPushNotifications();
+          fullSync().catch((error: unknown) => {
+            logError(error, { context: 'startupFullSync' });
+          });
+          cleanup = setupNotificationListeners();
+        } catch (error) {
+          if (__DEV__) console.warn('Notification startup skipped:', error);
+        }
+
+        return () => cleanup?.();
+      }
     } else {
       setUserContext(null);
     }

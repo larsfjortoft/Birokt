@@ -365,6 +365,16 @@ export interface LocalInspection {
     status: string;
     varroaLevel?: string;
   };
+  actions?: Array<{ actionType: string; details?: Record<string, unknown> }>;
+  colonies?: Array<{
+    colonyNumber: number;
+    strength?: 'weak' | 'medium' | 'strong';
+    temperament?: 'calm' | 'nervous' | 'aggressive';
+    queenSeen?: boolean;
+    queenLaying?: boolean;
+    needsFood?: boolean;
+    healthStatus?: 'healthy' | 'warning' | 'critical';
+  }>;
   notes?: string;
   syncedAt?: string;
   createdAt: string;
@@ -503,6 +513,8 @@ export async function createInspection(
     assessment: inspection.assessment,
     frames: inspection.frames,
     health: inspection.health,
+    actions: inspection.actions,
+    colonies: inspection.colonies,
     notes: inspection.notes,
   });
 

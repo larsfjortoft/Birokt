@@ -3,6 +3,7 @@ import { useAuthStore } from '../../stores/auth';
 
 const mockFetch = global.fetch as jest.Mock;
 const clearSecureStore = (global as unknown as { __secureStoreClear: () => void }).__secureStoreClear;
+const localUser = { id: 'local', email: 'local@birokt.app', name: 'Birøkt' };
 
 function createSuccessResponse(data: unknown) {
   return {
@@ -16,16 +17,16 @@ beforeEach(() => {
   jest.clearAllMocks();
   clearSecureStore();
   // Reset zustand store state
-  useAuthStore.setState({ user: null, isAuthenticated: false, isLoading: true });
+  useAuthStore.setState({ user: localUser, isAuthenticated: true, isLoading: false });
 });
 
 describe('Auth Store', () => {
   describe('initial state', () => {
-    it('should start with not authenticated', () => {
+    it('should start in local authenticated mode', () => {
       const state = useAuthStore.getState();
 
-      expect(state.isAuthenticated).toBe(false);
-      expect(state.user).toBeNull();
+      expect(state.isAuthenticated).toBe(true);
+      expect(state.user).toEqual(localUser);
     });
   });
 
@@ -49,7 +50,7 @@ describe('Auth Store', () => {
       expect(state.isLoading).toBe(false);
     });
 
-    it('should throw and keep state unchanged on failure', async () => {
+    it('should throw and keep local user on failure', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 401,
@@ -63,14 +64,14 @@ describe('Auth Store', () => {
       await expect(useAuthStore.getState().login('bad@test.no', 'wrong')).rejects.toBeDefined();
 
       const state = useAuthStore.getState();
-      expect(state.isAuthenticated).toBe(false);
-      expect(state.user).toBeNull();
+      expect(state.isAuthenticated).toBe(true);
+      expect(state.user).toEqual(localUser);
       expect(state.isLoading).toBe(false);
     });
   });
 
   describe('logout', () => {
-    it('should clear user and tokens', async () => {
+    it('should clear tokens and keep local authenticated mode', async () => {
       const mockUser = { id: '1', email: 'test@test.no', name: 'Test' };
 
       // First login
@@ -88,41 +89,37 @@ describe('Auth Store', () => {
       await useAuthStore.getState().logout();
 
       const state = useAuthStore.getState();
-      expect(state.isAuthenticated).toBe(false);
-      expect(state.user).toBeNull();
+      expect(state.isAuthenticated).toBe(true);
+      expect(state.user).toEqual(localUser);
       expect(SecureStore.deleteItemAsync).toHaveBeenCalledWith('accessToken');
       expect(SecureStore.deleteItemAsync).toHaveBeenCalledWith('refreshToken');
     });
   });
 
   describe('checkAuth', () => {
-    it('should restore session with valid token', async () => {
-      const mockUser = { id: '1', email: 'test@test.no', name: 'Test' };
-
-      // Set a token in secure store
+    it('should ignore existing tokens and use local user', async () => {
       await SecureStore.setItemAsync('accessToken', 'validtoken');
-
-      // Mock the /auth/me call
-      mockFetch.mockResolvedValueOnce(createSuccessResponse(mockUser));
 
       await useAuthStore.getState().checkAuth();
 
       const state = useAuthStore.getState();
       expect(state.isAuthenticated).toBe(true);
-      expect(state.user).toEqual(mockUser);
+      expect(state.user).toEqual(localUser);
       expect(state.isLoading).toBe(false);
+      expect(SecureStore.deleteItemAsync).toHaveBeenCalledWith('accessToken');
+      expect(SecureStore.deleteItemAsync).toHaveBeenCalledWith('refreshToken');
     });
 
-    it('should set not authenticated when no token exists', async () => {
+    it('should use local user when no token exists', async () => {
       await useAuthStore.getState().checkAuth();
 
       const state = useAuthStore.getState();
-      expect(state.isAuthenticated).toBe(false);
-      expect(state.user).toBeNull();
+      expect(state.isAuthenticated).toBe(true);
+      expect(state.user).toEqual(localUser);
       expect(state.isLoading).toBe(false);
     });
 
-    it('should clear tokens and set not authenticated when /me fails', async () => {
+    it('should not call /me when checking local auth', async () => {
       await SecureStore.setItemAsync('accessToken', 'invalidtoken');
 
       mockFetch.mockRejectedValueOnce(new Error('Network error'));
@@ -130,9 +127,10 @@ describe('Auth Store', () => {
       await useAuthStore.getState().checkAuth();
 
       const state = useAuthStore.getState();
-      expect(state.isAuthenticated).toBe(false);
-      expect(state.user).toBeNull();
+      expect(state.isAuthenticated).toBe(true);
+      expect(state.user).toEqual(localUser);
       expect(SecureStore.deleteItemAsync).toHaveBeenCalledWith('accessToken');
+      expect(mockFetch).not.toHaveBeenCalled();
     });
   });
 });

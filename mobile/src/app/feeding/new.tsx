@@ -19,17 +19,18 @@ import { createFeeding } from '../../services/offlineData';
 
 const feedTypeOptions = [
   { value: 'sugar_syrup', label: 'Sukkerlake' },
-  { value: 'sugar_paste', label: 'Sukkerpasta' },
+  { value: 'sugar_dough', label: 'Sukkerpasta' },
+  { value: 'ready_feed', label: 'Ferdigfôr' },
   { value: 'honey', label: 'Honning' },
   { value: 'pollen_substitute', label: 'Pollenerstatning' },
   { value: 'other', label: 'Annet' },
 ];
 
 const reasonOptions = [
-  { value: 'autumn_feeding', label: 'Hostforing' },
-  { value: 'spring_stimulation', label: 'Varstimulering' },
-  { value: 'emergency', label: 'Nodforing' },
-  { value: 'nuc_support', label: 'Avleggerstotte' },
+  { value: 'winter_prep', label: 'Høstfôring' },
+  { value: 'spring_stimulation', label: 'Vårstimulering' },
+  { value: 'emergency', label: 'Nødfôring' },
+  { value: 'nuc_support', label: 'Avleggerstøtte' },
   { value: 'other', label: 'Annet' },
 ];
 
@@ -43,7 +44,7 @@ export default function NewFeedingScreen() {
     feedType: 'sugar_syrup',
     amountKg: '',
     sugarConcentration: '',
-    reason: 'autumn_feeding',
+    reason: 'winter_prep',
     notes: '',
   });
 
@@ -63,7 +64,7 @@ export default function NewFeedingScreen() {
 
   const handleSave = async () => {
     if (!formData.amountKg || parseFloat(formData.amountKg) <= 0) {
-      Alert.alert('Mangler data', 'Mengde er pakrevd');
+      Alert.alert('Mangler data', 'Mengde er påkrevd');
       return;
     }
 
@@ -101,6 +102,15 @@ export default function NewFeedingScreen() {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
+  const selectFeedType = (feedType: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      feedType,
+      // Commercial ready-made feed has a known standard concentration.
+      sugarConcentration: feedType === 'ready_feed' ? '75' : prev.sugarConcentration,
+    }));
+  };
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.header}>
@@ -118,7 +128,7 @@ export default function NewFeedingScreen() {
       {/* Feed type */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>
-          <Ionicons name="water-outline" size={18} color="#f59e0b" /> Fortype
+          <Ionicons name="water-outline" size={18} color="#f59e0b" /> Fôrtype
         </Text>
 
         <View style={styles.buttonRow}>
@@ -129,9 +139,9 @@ export default function NewFeedingScreen() {
                 styles.optionButton,
                 formData.feedType === opt.value && styles.optionSelected,
               ]}
-              onPress={() => updateField('feedType', opt.value)}
+              onPress={() => selectFeedType(opt.value)}
               accessibilityRole="button"
-              accessibilityLabel={`Fortype: ${opt.label}`}
+              accessibilityLabel={`Fôrtype: ${opt.label}`}
               accessibilityState={{ selected: formData.feedType === opt.value }}
             >
               <Text
@@ -165,7 +175,7 @@ export default function NewFeedingScreen() {
               accessibilityLabel="Mengde i kg"
             />
           </View>
-          {(formData.feedType === 'sugar_syrup' || formData.feedType === 'sugar_paste') && (
+          {(formData.feedType === 'sugar_syrup' || formData.feedType === 'sugar_dough' || formData.feedType === 'ready_feed') && (
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Sukkerkonsentrasjon (%)</Text>
               <TextInput
@@ -173,7 +183,7 @@ export default function NewFeedingScreen() {
                 value={formData.sugarConcentration}
                 onChangeText={(v) => updateField('sugarConcentration', v)}
                 keyboardType="decimal-pad"
-                placeholder="60"
+                placeholder={formData.feedType === 'ready_feed' ? '75' : '60'}
                 accessibilityLabel="Sukkerkonsentrasjon i prosent"
               />
             </View>
@@ -184,7 +194,7 @@ export default function NewFeedingScreen() {
       {/* Reason */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>
-          <Ionicons name="help-circle-outline" size={18} color="#f59e0b" /> Arsak
+          <Ionicons name="help-circle-outline" size={18} color="#f59e0b" /> Årsak
         </Text>
 
         <View style={styles.buttonRow}>
@@ -197,7 +207,7 @@ export default function NewFeedingScreen() {
               ]}
               onPress={() => updateField('reason', opt.value)}
               accessibilityRole="button"
-              accessibilityLabel={`Arsak: ${opt.label}`}
+              accessibilityLabel={`Årsak: ${opt.label}`}
               accessibilityState={{ selected: formData.reason === opt.value }}
             >
               <Text

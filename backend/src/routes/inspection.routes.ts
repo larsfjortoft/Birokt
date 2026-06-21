@@ -46,6 +46,15 @@ const createInspectionSchema = z.object({
     actionType: z.string().trim(),
     details: z.record(z.unknown()).default({}),
   })).optional(),
+  colonies: z.array(z.object({
+    colonyNumber: z.number().int().min(1).max(2),
+    strength: z.enum(['weak', 'medium', 'strong']).optional(),
+    temperament: z.enum(['calm', 'nervous', 'aggressive']).optional(),
+    queenSeen: z.boolean().default(false),
+    queenLaying: z.boolean().default(false),
+    needsFood: z.boolean().default(false),
+    healthStatus: z.enum(['healthy', 'warning', 'critical']).default('healthy'),
+  })).optional(),
   notes: z.string().trim().optional(),
 });
 
@@ -91,6 +100,38 @@ const listInspectionsSchema = z.object({
 const idParamSchema = z.object({
   id: z.string().uuid(),
 });
+
+function parseMetadata(metadata: string | null | undefined): Record<string, unknown> {
+  try {
+    return metadata ? JSON.parse(metadata) : {};
+  } catch {
+    return {};
+  }
+}
+
+function getInspectionColonies(inspection: {
+  metadata?: string | null;
+  strength?: string | null;
+  temperament?: string | null;
+  queenSeen: boolean;
+  queenLaying: boolean;
+  healthStatus: string;
+}) {
+  const metadata = parseMetadata(inspection.metadata);
+  if (Array.isArray(metadata.colonies)) {
+    return metadata.colonies;
+  }
+
+  return [{
+    colonyNumber: 1,
+    strength: inspection.strength,
+    temperament: inspection.temperament,
+    queenSeen: inspection.queenSeen,
+    queenLaying: inspection.queenLaying,
+    needsFood: false,
+    healthStatus: inspection.healthStatus,
+  }];
+}
 
 // Configure multer for file uploads
 const storage = multer.memoryStorage();
@@ -329,6 +370,7 @@ router.get('/', validateQuery(listInspectionsSchema), async (req: Request, res: 
         actionType: a.actionType,
         details: JSON.parse(a.details),
       })),
+      colonies: getInspectionColonies(inspection),
       notes: inspection.notes,
       createdAt: inspection.createdAt,
     }));
@@ -344,7 +386,8 @@ router.get('/', validateQuery(listInspectionsSchema), async (req: Request, res: 
 router.post('/', validateBody(createInspectionSchema), async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
-    const { hiveId, inspectionDate, weather, assessment, frames, health, actions, notes } = req.body;
+    const { hiveId, inspectionDate, weather, assessment, frames, health, actions, colonies, notes } = req.body;
+    const primaryColony = colonies?.[0];
 
     // Check hive access
     const { hasAccess } = await checkHiveAccess(userId, hiveId);
@@ -362,18 +405,21 @@ router.post('/', validateBody(createInspectionSchema), async (req: Request, res:
         temperature: weather?.temperature,
         windSpeed: weather?.windSpeed,
         weatherCondition: weather?.condition,
-        strength: assessment?.strength,
-        temperament: assessment?.temperament,
-        queenSeen: assessment?.queenSeen || false,
-        queenLaying: assessment?.queenLaying || false,
+        strength: primaryColony?.strength || assessment?.strength,
+        temperament: primaryColony?.temperament || assessment?.temperament,
+        queenSeen: primaryColony?.queenSeen ?? assessment?.queenSeen ?? false,
+        queenLaying: primaryColony?.queenLaying ?? assessment?.queenLaying ?? false,
         broodFrames: frames?.brood || 0,
         honeyFrames: frames?.honey || 0,
         pollenFrames: frames?.pollen || 0,
         emptyFrames: frames?.empty || 0,
-        healthStatus: health?.status || 'healthy',
+        healthStatus: primaryColony?.healthStatus || health?.status || 'healthy',
         varroaLevel: health?.varroaLevel,
         diseases: JSON.stringify(health?.diseases || []),
         pests: JSON.stringify(health?.pests || []),
+        metadata: JSON.stringify({
+          colonies: colonies || [],
+        }),
         notes,
         actions: actions ? {
           create: actions.map((a: { actionType: string; details: Record<string, unknown> }) => ({
@@ -397,7 +443,7 @@ router.post('/', validateBody(createInspectionSchema), async (req: Request, res:
     await prisma.hive.update({
       where: { id: hiveId },
       data: {
-        strength: assessment?.strength,
+        strength: primaryColony?.strength || assessment?.strength,
         currentBroodFrames: frames?.brood,
         currentHoneyFrames: frames?.honey,
       },
@@ -435,6 +481,7 @@ router.post('/', validateBody(createInspectionSchema), async (req: Request, res:
         actionType: a.actionType,
         details: JSON.parse(a.details),
       })),
+      colonies: getInspectionColonies(inspection),
       notes: inspection.notes,
       createdAt: inspection.createdAt,
     }, 201);
@@ -529,6 +576,7 @@ router.get('/:id', validateParams(idParamSchema), async (req: Request, res: Resp
         actionType: a.actionType,
         details: JSON.parse(a.details),
       })),
+      colonies: getInspectionColonies(inspection),
       notes: inspection.notes,
       createdAt: inspection.createdAt,
     });

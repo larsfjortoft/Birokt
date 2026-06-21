@@ -7,14 +7,23 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Plus, MapPin, X, LocateFixed } from 'lucide-react';
+import { Plus, MapPin, X, LocateFixed, Pencil } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { SkeletonCard } from '@/components/ui/skeleton';
 
+type ApiaryListItem = {
+  id: string;
+  name: string;
+  description?: string;
+  location?: { name?: string; lat?: number; lng?: number };
+  active: boolean;
+};
+
 export default function ApiariesPage() {
   const queryClient = useQueryClient();
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingApiaryId, setEditingApiaryId] = useState<string | null>(null);
   const [newApiary, setNewApiary] = useState({ name: '', description: '', locationName: '', lat: '', lng: '' });
   const [geoLoading, setGeoLoading] = useState(false);
   const { data: response, isLoading } = useQuery({
@@ -36,6 +45,49 @@ export default function ApiariesPage() {
       toast.error(error?.error?.message || 'Kunne ikke opprette bigård');
     },
   });
+
+  const updateMutation = useMutation({
+    mutationFn: (data: {
+      id: string;
+      values: {
+        name: string;
+        description?: string | null;
+        location?: { name?: string | null; lat?: number | null; lng?: number | null };
+      };
+    }) => apiariesApi.update(data.id, data.values),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['apiaries'] });
+      if (editingApiaryId) {
+        queryClient.invalidateQueries({ queryKey: ['apiary', editingApiaryId] });
+      }
+      setShowCreateModal(false);
+      setEditingApiaryId(null);
+      setNewApiary({ name: '', description: '', locationName: '', lat: '', lng: '' });
+      toast.success('Bigård oppdatert!');
+    },
+    onError: (err: unknown) => {
+      const error = err as { error?: { message?: string } };
+      toast.error(error?.error?.message || 'Kunne ikke oppdatere bigård');
+    },
+  });
+
+  const closeModal = () => {
+    setShowCreateModal(false);
+    setEditingApiaryId(null);
+    setNewApiary({ name: '', description: '', locationName: '', lat: '', lng: '' });
+  };
+
+  const openEditModal = (apiary: ApiaryListItem) => {
+    setEditingApiaryId(apiary.id);
+    setNewApiary({
+      name: apiary.name,
+      description: apiary.description || '',
+      locationName: apiary.location?.name || '',
+      lat: apiary.location?.lat?.toString() || '',
+      lng: apiary.location?.lng?.toString() || '',
+    });
+    setShowCreateModal(true);
+  };
 
   const handleGeolocate = () => {
     if (!navigator.geolocation) {
@@ -63,15 +115,33 @@ export default function ApiariesPage() {
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
-    const hasLocation = newApiary.locationName || newApiary.lat || newApiary.lng;
+    const location = {
+      name: newApiary.locationName || undefined,
+      lat: newApiary.lat ? parseFloat(newApiary.lat) : undefined,
+      lng: newApiary.lng ? parseFloat(newApiary.lng) : undefined,
+    };
+    const hasLocation = location.name || location.lat !== undefined || location.lng !== undefined;
+
+    if (editingApiaryId) {
+      updateMutation.mutate({
+        id: editingApiaryId,
+        values: {
+          name: newApiary.name,
+          description: newApiary.description || null,
+          location: {
+            name: newApiary.locationName || null,
+            lat: newApiary.lat ? parseFloat(newApiary.lat) : null,
+            lng: newApiary.lng ? parseFloat(newApiary.lng) : null,
+          },
+        },
+      });
+      return;
+    }
+
     createMutation.mutate({
       name: newApiary.name,
       description: newApiary.description || undefined,
-      location: hasLocation ? {
-        name: newApiary.locationName || undefined,
-        lat: newApiary.lat ? parseFloat(newApiary.lat) : undefined,
-        lng: newApiary.lng ? parseFloat(newApiary.lng) : undefined,
-      } : undefined,
+      location: hasLocation ? location : undefined,
     });
   };
 
@@ -111,24 +181,37 @@ export default function ApiariesPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {apiaries.map((apiary) => (
-            <Link key={apiary.id} href={`/apiaries/${apiary.id}`}>
-              <Card className="h-full hover:border-honey-300 hover:shadow-md transition-all cursor-pointer">
-                <CardContent className="pt-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <h3 className="font-semibold text-gray-900">{apiary.name}</h3>
-                      {apiary.location?.name && (
-                        <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
-                          <MapPin className="w-3 h-3" />
-                          {apiary.location.name}
-                        </p>
-                      )}
-                    </div>
+            <Card key={apiary.id} className="h-full hover:border-honey-300 hover:shadow-md transition-all">
+              <CardContent className="pt-6">
+                <div className="flex items-start justify-between gap-3 mb-4">
+                  <Link href={`/apiaries/${apiary.id}`} className="min-w-0 flex-1">
+                    <h3 className="font-semibold text-gray-900 hover:text-honey-700 transition-colors">
+                      {apiary.name}
+                    </h3>
+                    {apiary.location?.name && (
+                      <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
+                        <MapPin className="w-3 h-3" />
+                        {apiary.location.name}
+                      </p>
+                    )}
+                  </Link>
+                  <div className="flex items-center gap-2">
                     <Badge variant={apiary.active ? 'success' : 'default'}>
                       {apiary.active ? 'Aktiv' : 'Inaktiv'}
                     </Badge>
+                    <button
+                      type="button"
+                      onClick={() => openEditModal(apiary)}
+                      className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition-colors"
+                      aria-label={`Rediger ${apiary.name}`}
+                      title="Rediger"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
                   </div>
+                </div>
 
+                <Link href={`/apiaries/${apiary.id}`} className="block">
                   {apiary.description && (
                     <p className="text-sm text-gray-600 mb-4 line-clamp-2">
                       {apiary.description}
@@ -151,9 +234,9 @@ export default function ApiariesPage() {
                       )}
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            </Link>
+                </Link>
+              </CardContent>
+            </Card>
           ))}
         </div>
       )}
@@ -163,9 +246,11 @@ export default function ApiariesPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <Card className="w-full max-w-md">
             <div className="flex items-center justify-between p-4 border-b">
-              <h2 className="text-lg font-semibold">Ny bigård</h2>
+              <h2 className="text-lg font-semibold">
+                {editingApiaryId ? 'Rediger bigård' : 'Ny bigård'}
+              </h2>
               <button
-                onClick={() => setShowCreateModal(false)}
+                onClick={closeModal}
                 className="p-1 hover:bg-gray-100 rounded"
               >
                 <X className="w-5 h-5" />
@@ -240,12 +325,12 @@ export default function ApiariesPage() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setShowCreateModal(false)}
+                  onClick={closeModal}
                 >
                   Avbryt
                 </Button>
-                <Button type="submit" isLoading={createMutation.isPending}>
-                  Opprett
+                <Button type="submit" isLoading={createMutation.isPending || updateMutation.isPending}>
+                  {editingApiaryId ? 'Lagre endringer' : 'Opprett'}
                 </Button>
               </div>
             </form>

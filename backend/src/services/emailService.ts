@@ -55,7 +55,7 @@ function emailTemplate(title: string, bodyHtml: string): string {
         <table width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
           <tr>
             <td style="background-color:#f59e0b;padding:24px;text-align:center;">
-              <h1 style="margin:0;color:#ffffff;font-size:24px;">ðŸ BirÃ¸kt</h1>
+              <h1 style="margin:0;color:#ffffff;font-size:24px;">Birøkt</h1>
             </td>
           </tr>
           <tr>
@@ -65,8 +65,8 @@ function emailTemplate(title: string, bodyHtml: string): string {
           </tr>
           <tr>
             <td style="background-color:#f9fafb;padding:16px 24px;text-align:center;color:#6b7280;font-size:12px;">
-              <p style="margin:0;">Denne e-posten ble sendt fra BirÃ¸kt - Digital birÃ¸ktstyring</p>
-              <p style="margin:4px 0 0;">Du mottar denne fordi du har en konto hos BirÃ¸kt.</p>
+              <p style="margin:0;">Denne e-posten ble sendt fra Birøkt - Digital birøktstyring</p>
+              <p style="margin:4px 0 0;">Du mottar denne fordi du har en konto hos Birøkt.</p>
             </td>
           </tr>
         </table>
@@ -85,7 +85,7 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
   try {
     const transport = await getTransporter();
     const info = await transport.sendMail({
-      from: `"BirÃ¸kt" <${FROM_ADDRESS}>`,
+      from: `"Birøkt" <${FROM_ADDRESS}>`,
       to,
       subject,
       html,
@@ -106,31 +106,31 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
 }
 
 export async function sendWelcomeEmail(name: string, email: string): Promise<void> {
-  const html = emailTemplate('Velkommen til BirÃ¸kt', `
-    <h2 style="color:#1f2937;margin:0 0 16px;">Velkommen, ${name}! ðŸŽ‰</h2>
+  const html = emailTemplate('Velkommen til Birøkt', `
+    <h2 style="color:#1f2937;margin:0 0 16px;">Velkommen, ${name}!</h2>
     <p style="color:#4b5563;line-height:1.6;">
-      Takk for at du registrerte deg hos BirÃ¸kt â€“ din digitale birÃ¸ktstyring.
+      Takk for at du registrerte deg hos Birøkt - din digitale birøktstyring.
     </p>
     <p style="color:#4b5563;line-height:1.6;">
-      Med BirÃ¸kt kan du:
+      Med Birøkt kan du:
     </p>
     <ul style="color:#4b5563;line-height:1.8;">
-      <li>Holde oversikt over bigÃ¥rdene og kubene dine</li>
+      <li>Holde oversikt over bigårdene og kubene dine</li>
       <li>Registrere inspeksjoner og behandlinger</li>
-      <li>FÃ¸lge med pÃ¥ honningproduksjon og fÃ´ring</li>
-      <li>FÃ¥ varsler om inspeksjoner og vÃ¦rforhold</li>
+      <li>Følge med på honningproduksjon og fôring</li>
+      <li>Få varsler om inspeksjoner og værforhold</li>
     </ul>
     <p style="color:#4b5563;line-height:1.6;">
-      Kom i gang ved Ã¥ opprette din fÃ¸rste bigÃ¥rd!
+      Kom i gang ved å opprette din første bigård!
     </p>
     <div style="text-align:center;margin:24px 0;">
       <span style="display:inline-block;background-color:#f59e0b;color:#ffffff;padding:12px 24px;border-radius:6px;font-weight:bold;font-size:16px;">
-        God birÃ¸kting! ðŸ
+        God birøkting!
       </span>
     </div>
   `);
 
-  await sendEmail(email, 'Velkommen til BirÃ¸kt! ðŸ', html);
+  await sendEmail(email, 'Velkommen til Birøkt!', html);
 }
 
 export async function sendInspectionReminderEmail(
@@ -139,23 +139,23 @@ export async function sendInspectionReminderEmail(
   hives: Array<{ hiveNumber: string; apiaryName: string; daysSinceInspection: number | string }>
 ): Promise<void> {
   const hiveList = hives
-    .map(h => `<li>Kube <strong>${h.hiveNumber}</strong> i ${h.apiaryName} â€“ ${h.daysSinceInspection} dager siden siste inspeksjon</li>`)
+    .map(h => `<li>Kube <strong>${h.hiveNumber}</strong> i ${h.apiaryName} - ${h.daysSinceInspection} dager siden siste inspeksjon</li>`)
     .join('');
 
-  const html = emailTemplate('InspeksjonspÃ¥minnelse', `
+  const html = emailTemplate('Inspeksjonspåminnelse', `
     <h2 style="color:#1f2937;margin:0 0 16px;">Hei, ${name}!</h2>
     <p style="color:#4b5563;line-height:1.6;">
-      FÃ¸lgende kuber trenger inspeksjon:
+      Følgende kuber trenger inspeksjon:
     </p>
     <ul style="color:#4b5563;line-height:1.8;">
       ${hiveList}
     </ul>
     <p style="color:#4b5563;line-height:1.6;">
-      Vi anbefaler Ã¥ inspisere kubene minst hver 14. dag i sesongen.
+      Vi anbefaler å inspisere kubene minst hver 14. dag i sesongen.
     </p>
   `);
 
-  await sendEmail(email, 'InspeksjonspÃ¥minnelse â€“ BirÃ¸kt ðŸ', html);
+  await sendEmail(email, 'Inspeksjonspåminnelse - Birøkt', html);
 }
 
 export async function sendWithholdingWarningEmail(
@@ -164,23 +164,23 @@ export async function sendWithholdingWarningEmail(
   treatments: Array<{ productName: string; hiveNumber: string; apiaryName: string; daysRemaining: number }>
 ): Promise<void> {
   const treatmentList = treatments
-    .map(t => `<li><strong>${t.productName}</strong> â€“ kube ${t.hiveNumber} i ${t.apiaryName} (utlÃ¸per om ${t.daysRemaining} dager)</li>`)
+    .map(t => `<li><strong>${t.productName}</strong> - kube ${t.hiveNumber} i ${t.apiaryName} (utløper om ${t.daysRemaining} dager)</li>`)
     .join('');
 
-  const html = emailTemplate('Tilbakeholdelse utlÃ¸per snart', `
+  const html = emailTemplate('Tilbakeholdelse utløper snart', `
     <h2 style="color:#1f2937;margin:0 0 16px;">Hei, ${name}!</h2>
     <p style="color:#4b5563;line-height:1.6;">
-      Tilbakeholdelsesperioden utlÃ¸per om 7 dager for fÃ¸lgende behandlinger:
+      Tilbakeholdelsesperioden utløper om 7 dager for følgende behandlinger:
     </p>
     <ul style="color:#4b5563;line-height:1.8;">
       ${treatmentList}
     </ul>
     <p style="color:#4b5563;line-height:1.6;">
-      Husk Ã¥ ikke hÃ¸ste honning fÃ¸r tilbakeholdelsesperioden er over.
+      Husk å ikke høste honning før tilbakeholdelsesperioden er over.
     </p>
   `);
 
-  await sendEmail(email, 'Tilbakeholdelse utlÃ¸per snart â€“ BirÃ¸kt ðŸ', html);
+  await sendEmail(email, 'Tilbakeholdelse utløper snart - Birøkt', html);
 }
 
 export async function sendWeeklySummaryEmail(
@@ -210,25 +210,25 @@ export async function sendWeeklySummaryEmail(
 
   const html = emailTemplate('Ukentlig sammendrag', `
     <h2 style="color:#1f2937;margin:0 0 8px;">Hei, ${name}!</h2>
-    <p style="color:#4b5563;line-height:1.6;margin:0 0 24px;">Her er ditt ukentlige sammendrag fra BirÃ¸kt.</p>
+    <p style="color:#4b5563;line-height:1.6;margin:0 0 24px;">Her er ditt ukentlige sammendrag fra Birøkt.</p>
     <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e5e7eb;border-radius:6px;overflow:hidden;border-collapse:collapse;">
       <thead>
         <tr style="background-color:#f9fafb;">
-          <th style="padding:12px;text-align:left;color:#6b7280;font-size:12px;font-weight:600;text-transform:uppercase;">BigÃ¥rd</th>
+          <th style="padding:12px;text-align:left;color:#6b7280;font-size:12px;font-weight:600;text-transform:uppercase;">Bigård</th>
           <th style="padding:12px;text-align:center;color:#6b7280;font-size:12px;font-weight:600;text-transform:uppercase;">Kuber</th>
           <th style="padding:12px;text-align:center;color:#6b7280;font-size:12px;font-weight:600;text-transform:uppercase;">Trenger inspeksjon</th>
           <th style="padding:12px;text-align:center;color:#6b7280;font-size:12px;font-weight:600;text-transform:uppercase;">Aktive karenstider</th>
-          <th style="padding:12px;text-align:center;color:#6b7280;font-size:12px;font-weight:600;text-transform:uppercase;">Honning i Ã¥r</th>
+          <th style="padding:12px;text-align:center;color:#6b7280;font-size:12px;font-weight:600;text-transform:uppercase;">Honning i år</th>
         </tr>
       </thead>
       <tbody>
         ${apiaryRows}
       </tbody>
     </table>
-    <p style="color:#9ca3af;font-size:12px;margin:16px 0 0;">Du mottar dette sammendraget hver sÃ¸ndag. Innstillingene kan endres i BirÃ¸kt-appen.</p>
+    <p style="color:#9ca3af;font-size:12px;margin:16px 0 0;">Du mottar dette sammendraget hver søndag. Innstillingene kan endres i Birøkt-appen.</p>
   `);
 
-  await sendEmail(email, 'Ukentlig sammendrag â€“ BirÃ¸kt ðŸ', html);
+  await sendEmail(email, 'Ukentlig sammendrag - Birøkt', html);
 }
 
 export async function sendTreatmentReminderEmail(
@@ -237,23 +237,23 @@ export async function sendTreatmentReminderEmail(
   treatments: Array<{ productName: string; hiveNumber: string; apiaryName: string }>
 ): Promise<void> {
   const treatmentList = treatments
-    .map(t => `<li><strong>${t.productName}</strong> â€“ kube ${t.hiveNumber} i ${t.apiaryName}</li>`)
+    .map(t => `<li><strong>${t.productName}</strong> - kube ${t.hiveNumber} i ${t.apiaryName}</li>`)
     .join('');
 
-  const html = emailTemplate('Tilbakeholdelse utlÃ¸per', `
+  const html = emailTemplate('Tilbakeholdelse utløper', `
     <h2 style="color:#1f2937;margin:0 0 16px;">Hei, ${name}!</h2>
     <p style="color:#4b5563;line-height:1.6;">
-      Tilbakeholdelsesperioden utlÃ¸per i dag for fÃ¸lgende behandlinger:
+      Tilbakeholdelsesperioden utløper i dag for følgende behandlinger:
     </p>
     <ul style="color:#4b5563;line-height:1.8;">
       ${treatmentList}
     </ul>
     <p style="color:#4b5563;line-height:1.6;">
-      Du kan nÃ¥ hÃ¸ste honning fra disse kubene igjen.
+      Du kan nå høste honning fra disse kubene igjen.
     </p>
   `);
 
-  await sendEmail(email, 'Tilbakeholdelse utlÃ¸per i dag â€“ BirÃ¸kt ðŸ', html);
+  await sendEmail(email, 'Tilbakeholdelse utløper i dag - Birøkt', html);
 }
 
 

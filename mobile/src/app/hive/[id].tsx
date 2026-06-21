@@ -1,5 +1,5 @@
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, RefreshControl, Image } from 'react-native';
-import { useLocalSearchParams, router } from 'expo-router';
+import { Stack, useLocalSearchParams, router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { hivesApi } from '../../lib/api';
@@ -139,18 +139,47 @@ export default function HiveDetailScreen() {
   }
 
   const strengthColors = getStrengthColor(hive.strength);
+  const closeHive = () => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+
+    if (hive.apiary.id) {
+      router.replace({ pathname: '/apiary/[id]', params: { id: hive.apiary.id } });
+      return;
+    }
+
+    router.replace('/(tabs)/home');
+  };
 
   return (
-    <ScrollView
-      style={styles.container}
-      refreshControl={
-        <RefreshControl
-          refreshing={isRefetching}
-          onRefresh={refetch}
-          tintColor="#f59e0b"
-        />
-      }
-    >
+    <>
+      <Stack.Screen
+        options={{
+          headerLeft: () => (
+            <TouchableOpacity
+              style={styles.headerBackButton}
+              onPress={closeHive}
+              accessibilityRole="button"
+              accessibilityLabel="Tilbake"
+            >
+              <Ionicons name="arrow-back" size={22} color="#fff" />
+              <Text style={styles.headerBackText}>Tilbake</Text>
+            </TouchableOpacity>
+          ),
+        }}
+      />
+      <ScrollView
+        style={styles.container}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefetching}
+            onRefresh={refetch}
+            tintColor="#f59e0b"
+          />
+        }
+      >
       {/* Header card */}
       <View style={styles.headerCard}>
         <View style={styles.headerTop}>
@@ -182,6 +211,7 @@ export default function HiveDetailScreen() {
             onPress={() => router.push({ pathname: '/inspection/new', params: {
               hiveId: id,
               hiveNumber: hive.hiveNumber,
+              hiveType: hive.hiveType,
               ...(hive.apiary.location?.lat && hive.apiary.location?.lng ? {
                 apiaryLat: String(hive.apiary.location.lat),
                 apiaryLng: String(hive.apiary.location.lng),
@@ -252,8 +282,8 @@ export default function HiveDetailScreen() {
             <Ionicons name="sparkles" size={18} color="#f59e0b" /> Dronning
           </Text>
           <View style={styles.queenInfo} accessibilityLabel="Dronninginformasjon">
-            <View style={styles.queenRow} accessibilityLabel={`Dronningens ar: ${hive.queen.year}`}>
-              <Text style={styles.queenLabel}>Ar</Text>
+            <View style={styles.queenRow} accessibilityLabel={`Dronningens år: ${hive.queen.year}`}>
+              <Text style={styles.queenLabel}>År</Text>
               <Text style={styles.queenValue}>{hive.queen.year}</Text>
             </View>
             {hive.queen.race && (
@@ -286,7 +316,7 @@ export default function HiveDetailScreen() {
         </Text>
         {hive.inspections.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>Ingen inspeksjoner enna</Text>
+            <Text style={styles.emptyText}>Ingen inspeksjoner ennå</Text>
           </View>
         ) : (
           hive.inspections.slice(0, 5).map((inspection) => {
@@ -359,8 +389,9 @@ export default function HiveDetailScreen() {
         </View>
       )}
 
-      <View style={{ height: 32 }} />
-    </ScrollView>
+        <View style={{ height: 32 }} />
+      </ScrollView>
+    </>
   );
 }
 
@@ -377,6 +408,17 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 16,
     color: '#6b7280',
+  },
+  headerBackButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingRight: 8,
+  },
+  headerBackText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   headerCard: {
     backgroundColor: '#fff',

@@ -55,6 +55,54 @@ describe('Inspections API', () => {
       expect(response.body.success).toBe(true);
     });
 
+    it('should create inspection with two queen sections', async () => {
+      const doubleQueenHive = await createTestHive(apiary, {
+        hiveNumber: 'DQ-001',
+        hiveType: 'double_queen',
+      });
+
+      const response = await testRequest
+        .post('/api/v1/inspections')
+        .set('Authorization', `Bearer ${user.accessToken}`)
+        .send({
+          hiveId: doubleQueenHive.id,
+          inspectionDate: new Date().toISOString(),
+          health: { status: 'warning', diseases: ['chalkbrood'], pests: ['varroa'] },
+          actions: [{ actionType: 'needs_food' }],
+          colonies: [
+            {
+              colonyNumber: 1,
+              strength: 'strong',
+              temperament: 'calm',
+              queenSeen: true,
+              queenLaying: true,
+              needsFood: true,
+              healthStatus: 'warning',
+            },
+            {
+              colonyNumber: 2,
+              strength: 'weak',
+              temperament: 'nervous',
+              queenSeen: false,
+              queenLaying: false,
+              needsFood: true,
+              healthStatus: 'warning',
+            },
+          ],
+        })
+        .expect(201);
+
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.assessment.strength).toBe('strong');
+      expect(response.body.data.colonies).toHaveLength(2);
+      expect(response.body.data.colonies[1]).toMatchObject({
+        colonyNumber: 2,
+        strength: 'weak',
+        queenSeen: false,
+        queenLaying: false,
+      });
+    });
+
     it('should reject inspection without hiveId', async () => {
       const response = await testRequest
         .post('/api/v1/inspections')
