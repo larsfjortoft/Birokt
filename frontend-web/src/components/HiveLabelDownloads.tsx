@@ -83,12 +83,11 @@ function cube(x: number, y: number, z: number, width: number, height: number, de
   return faces.map((face) => `facet normal 0 0 0\n outer loop\n${face.map((index) => `  vertex ${points[index].join(' ')}`).join('\n')}\n endloop\nendfacet`).join('\n');
 }
 
-function labelTextBlocks(label: string) {
+function labelTextBlocks(label: string, y = 3) {
   const text = label.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   const scale = Math.min(1.3, 48 / Math.max(1, text.length * 6));
   const blocks: string[] = [];
-  let x = 3;
-  const y = 5;
+  let x = (BASE_WIDTH - (text.length * 6 - 1) * scale) / 2;
   for (const character of text) {
     const glyph = glyphs[character] || glyphs['?'];
     glyph.forEach((row, rowIndex) => row.split('').forEach((pixel, columnIndex) => {
@@ -110,16 +109,19 @@ export function HiveLabelDownloads({ hiveNumber, qrCode }: HiveLabelDownloadsPro
 
   const downloadStl = () => {
     const qr = QRCode.create(qrCode, { errorCorrectionLevel: 'M' });
-    const moduleSize = 42 / qr.modules.size;
+    const qrSize = 34;
+    const moduleSize = qrSize / qr.modules.size;
+    const qrX = (BASE_WIDTH - qrSize) / 2;
+    const qrY = 16;
     const modules: string[] = [];
     for (let row = 0; row < qr.modules.size; row += 1) {
       for (let column = 0; column < qr.modules.size; column += 1) {
         if (qr.modules.get(row, column)) {
-          modules.push(cube(27 + column * moduleSize, 7 + (qr.modules.size - row - 1) * moduleSize, BASE_DEPTH, moduleSize, moduleSize, RAISED_DEPTH));
+          modules.push(cube(qrX + column * moduleSize, qrY + (qr.modules.size - row - 1) * moduleSize, BASE_DEPTH, moduleSize, moduleSize, RAISED_DEPTH));
         }
       }
     }
-    const stl = `solid birokt_hive_label\n${cube(0, 0, 0, BASE_WIDTH, BASE_HEIGHT, BASE_DEPTH)}\n${labelTextBlocks(`KUBE ${hiveNumber}`).join('\n')}\n${modules.join('\n')}\nendsolid birokt_hive_label\n`;
+    const stl = `solid birokt_hive_label\n${cube(0, 0, 0, BASE_WIDTH, BASE_HEIGHT, BASE_DEPTH)}\n${modules.join('\n')}\n${labelTextBlocks(`KUBE ${hiveNumber}`).join('\n')}\nendsolid birokt_hive_label\n`;
     download(`kube-${filename}-3d-merke.stl`, stl, 'model/stl');
   };
 
