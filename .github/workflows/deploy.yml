@@ -6,9 +6,54 @@ on:
   workflow_dispatch:
 
 jobs:
+  preflight:
+    name: Resolve Deploy Targets
+    runs-on: ubuntu-latest
+    outputs:
+      backend_staging_ready: ${{ steps.flags.outputs.backend_staging_ready }}
+      frontend_staging_ready: ${{ steps.flags.outputs.frontend_staging_ready }}
+      backend_production_ready: ${{ steps.flags.outputs.backend_production_ready }}
+      frontend_production_ready: ${{ steps.flags.outputs.frontend_production_ready }}
+    steps:
+      - name: Check configured secrets
+        id: flags
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_SERVICE_STAGING: ${{ secrets.RAILWAY_SERVICE_STAGING }}
+          RAILWAY_SERVICE_PRODUCTION: ${{ secrets.RAILWAY_SERVICE_PRODUCTION }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID_STAGING: ${{ secrets.VERCEL_PROJECT_ID_STAGING }}
+          VERCEL_PROJECT_ID_PRODUCTION: ${{ secrets.VERCEL_PROJECT_ID_PRODUCTION }}
+        run: |
+          if [ -n "$RAILWAY_TOKEN" ] && [ -n "$RAILWAY_SERVICE_STAGING" ]; then
+            echo "backend_staging_ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "backend_staging_ready=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          if [ -n "$VERCEL_TOKEN" ] && [ -n "$VERCEL_ORG_ID" ] && [ -n "$VERCEL_PROJECT_ID_STAGING" ]; then
+            echo "frontend_staging_ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "frontend_staging_ready=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          if [ -n "$RAILWAY_TOKEN" ] && [ -n "$RAILWAY_SERVICE_PRODUCTION" ]; then
+            echo "backend_production_ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "backend_production_ready=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          if [ -n "$VERCEL_TOKEN" ] && [ -n "$VERCEL_ORG_ID" ] && [ -n "$VERCEL_PROJECT_ID_PRODUCTION" ]; then
+            echo "frontend_production_ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "frontend_production_ready=false" >> "$GITHUB_OUTPUT"
+          fi
+
   deploy-backend-staging:
     name: Deploy Backend (Staging)
-    if: github.ref == 'refs/heads/develop' && secrets.RAILWAY_TOKEN != '' && secrets.RAILWAY_SERVICE_STAGING != ''
+    needs: preflight
+    if: github.ref == 'refs/heads/develop' && needs.preflight.outputs.backend_staging_ready == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,7 +65,8 @@ jobs:
 
   deploy-frontend-staging:
     name: Deploy Web (Staging)
-    if: github.ref == 'refs/heads/develop' && secrets.VERCEL_TOKEN != '' && secrets.VERCEL_ORG_ID != '' && secrets.VERCEL_PROJECT_ID_STAGING != ''
+    needs: preflight
+    if: github.ref == 'refs/heads/develop' && needs.preflight.outputs.frontend_staging_ready == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -35,7 +81,8 @@ jobs:
 
   deploy-backend-production:
     name: Deploy Backend (Production)
-    if: github.ref == 'refs/heads/main' && secrets.RAILWAY_TOKEN != '' && secrets.RAILWAY_SERVICE_PRODUCTION != ''
+    needs: preflight
+    if: github.ref == 'refs/heads/main' && needs.preflight.outputs.backend_production_ready == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -47,7 +94,8 @@ jobs:
 
   deploy-frontend-production:
     name: Deploy Web (Production)
-    if: github.ref == 'refs/heads/main' && secrets.VERCEL_TOKEN != '' && secrets.VERCEL_ORG_ID != '' && secrets.VERCEL_PROJECT_ID_PRODUCTION != ''
+    needs: preflight
+    if: github.ref == 'refs/heads/main' && needs.preflight.outputs.frontend_production_ready == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
