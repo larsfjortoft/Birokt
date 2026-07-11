@@ -1,5 +1,14 @@
 import { z } from 'zod';
 
+const booleanFromEnv = z.preprocess((value) => {
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'true') return true;
+    if (normalized === 'false') return false;
+  }
+  return value;
+}, z.boolean());
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(3000),
@@ -7,6 +16,7 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(1, 'JWT_SECRET is required'),
   JWT_ACCESS_EXPIRY: z.string().default('1h'),
   JWT_REFRESH_EXPIRY: z.string().default('30d'),
+  ALLOW_LOCAL_AGENT_AUTH: booleanFromEnv.default(false),
   CORS_ORIGINS: z.string().optional(),
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.string().optional(),

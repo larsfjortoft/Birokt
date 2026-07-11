@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { verifyToken, DecodedToken } from '../utils/jwt.js';
 import { sendError, ErrorCodes } from '../utils/response.js';
 import { prisma } from '../utils/prisma.js';
+import { env } from '../config/env.js';
 
 // Extend Express Request type to include user
 declare global {
@@ -39,12 +40,26 @@ async function attachLocalUser(req: Request): Promise<void> {
   req.user = await getLocalUser();
 }
 
+function localAuthEnabled(): boolean {
+  return env.ALLOW_LOCAL_AGENT_AUTH;
+}
+
 export async function authenticate(req: Request, res: Response, next: NextFunction): Promise<void> {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    await attachLocalUser(req);
-    next();
+    if (localAuthEnabled()) {
+      await attachLocalUser(req);
+      next();
+      return;
+    }
+
+    sendError(
+      res,
+      ErrorCodes.AUTHENTICATION_REQUIRED,
+      'Authentication required',
+      401
+    );
     return;
   }
 
@@ -72,14 +87,24 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
 
     next();
   } catch (error) {
-    if (error instanceof Error && error.name === 'TokenExpiredError') {
+    if (localAuthEnabled() && error instanceof Error && error.name === 'TokenExpiredError') {
       await attachLocalUser(req);
       next();
       return;
     }
 
-    await attachLocalUser(req);
-    next();
+    if (localAuthEnabled()) {
+      await attachLocalUser(req);
+      next();
+      return;
+    }
+
+    sendError(
+      res,
+      ErrorCodes.AUTHENTICATION_REQUIRED,
+      'Invalid or expired token',
+      401
+    );
   }
 }
 
@@ -88,7 +113,9 @@ export async function optionalAuth(req: Request, res: Response, next: NextFuncti
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    await attachLocalUser(req);
+    if (localAuthEnabled()) {
+      await attachLocalUser(req);
+    }
     next();
     return;
   }
@@ -105,7 +132,9 @@ export async function optionalAuth(req: Request, res: Response, next: NextFuncti
       };
     }
   } catch {
-    await attachLocalUser(req);
+    if (localAuthEnabled()) {
+      await attachLocalUser(req);
+    }
   }
 
   next();

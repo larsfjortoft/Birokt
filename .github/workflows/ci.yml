@@ -39,7 +39,9 @@ jobs:
 
       - name: Run tests
         working-directory: backend
-        run: npm test
+        run: |
+          npx prisma db push --skip-generate
+          npm test
         env:
           DATABASE_URL: file:./test.db
           JWT_SECRET: test-secret-key-for-ci-with-minimum-length-32
