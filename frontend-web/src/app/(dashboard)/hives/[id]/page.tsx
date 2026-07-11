@@ -163,7 +163,7 @@ export default function HiveDetailPage() {
               <p className="font-medium text-gray-900">Kubeetikett</p>
               <p className="text-sm text-gray-500">QR-koden starter en ny inspeksjon for denne kuben ved skanning.</p>
             </div>
-            <HiveLabelDownloads hiveNumber={hive.hiveNumber} qrCode={hive.qrCode} />
+            <HiveLabelDownloads hiveNumber={hive.hiveNumber} qrCode={hive.qrCode} hiveType={hive.hiveType} />
           </CardContent>
         </Card>
       )}

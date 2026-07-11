@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 type HiveLabelDownloadsProps = {
   hiveNumber: string;
   qrCode: string;
+  hiveType: string;
 };
 
 const BASE_WIDTH = 72;
@@ -56,6 +57,14 @@ const glyphs: Record<string, string[]> = {
   '?': ['01110', '10001', '00010', '00100', '00100', '00000', '00100'],
 };
 
+type TextBlockOptions = {
+  x?: number;
+  y?: number;
+  maxWidth?: number;
+  align?: 'left' | 'center' | 'right';
+  maxScale?: number;
+};
+
 function download(filename: string, content: string, type: string) {
   const blob = new Blob([content], { type });
   const url = URL.createObjectURL(blob);
@@ -83,37 +92,62 @@ function cube(x: number, y: number, z: number, width: number, height: number, de
   return faces.map((face) => `facet normal 0 0 0\n outer loop\n${face.map((index) => `  vertex ${points[index].join(' ')}`).join('\n')}\n endloop\nendfacet`).join('\n');
 }
 
-function labelTextBlocks(label: string, y = 3) {
+function labelTextBlocks(label: string, options: TextBlockOptions = {}) {
   const text = label.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  const scale = Math.min(1.3, 48 / Math.max(1, text.length * 6));
+  const {
+    x = BASE_WIDTH / 2,
+    y = 3,
+    maxWidth = 48,
+    align = 'center',
+    maxScale = 1.3,
+  } = options;
+  const scale = Math.min(maxScale, maxWidth / Math.max(1, text.length * 6));
+  const textWidth = (text.length * 6 - 1) * scale;
   const blocks: string[] = [];
-  let x = (BASE_WIDTH - (text.length * 6 - 1) * scale) / 2;
+  let startX = x;
+
+  if (align === 'center') {
+    startX -= textWidth / 2;
+  } else if (align === 'right') {
+    startX -= textWidth;
+  }
+
   for (const character of text) {
     const glyph = glyphs[character] || glyphs['?'];
     glyph.forEach((row, rowIndex) => row.split('').forEach((pixel, columnIndex) => {
-      if (pixel === '1') blocks.push(cube(x + columnIndex * scale, y + (6 - rowIndex) * scale, BASE_DEPTH, scale, scale, RAISED_DEPTH));
+      if (pixel === '1') blocks.push(cube(startX + columnIndex * scale, y + (6 - rowIndex) * scale, BASE_DEPTH, scale, scale, RAISED_DEPTH));
     }));
-    x += 6 * scale;
+    startX += 6 * scale;
   }
+
   return blocks;
 }
 
-export function HiveLabelDownloads({ hiveNumber, qrCode }: HiveLabelDownloadsProps) {
+export function HiveLabelDownloads({ hiveNumber, qrCode, hiveType }: HiveLabelDownloadsProps) {
   const filename = safeFilename(hiveNumber);
+  const colonyLabels = hiveType === 'double_queen' ? ['1', '2'] : ['1'];
 
   const downloadSvg = async () => {
     const qrDataUrl = await QRCode.toDataURL(qrCode, { errorCorrectionLevel: 'M', margin: 1, width: 900 });
-    const svg = `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="90mm" height="60mm" viewBox="0 0 900 600">\n  <rect width="900" height="600" rx="24" fill="white" stroke="#1f2937" stroke-width="10"/>\n  <text x="450" y="88" text-anchor="middle" font-family="Arial, sans-serif" font-size="58" font-weight="700" fill="#111827">Kube ${escapeXml(hiveNumber)}</text>\n  <image href="${qrDataUrl}" x="220" y="110" width="460" height="460"/>\n  <text x="450" y="575" text-anchor="middle" font-family="Arial, sans-serif" font-size="22" fill="#4b5563">Skann for å starte inspeksjon</text>\n</svg>`;
+    const qrX = 220;
+    const qrY = 120;
+    const qrWidth = 460;
+    const leftColonyLabel = `<text x="${qrX + 22}" y="92" text-anchor="start" font-family="Arial, sans-serif" font-size="56" font-weight="700" fill="#111827">${escapeXml(colonyLabels[0])}</text>`;
+    const rightColonyLabel = colonyLabels[1]
+      ? `\n  <text x="${qrX + qrWidth - 22}" y="92" text-anchor="end" font-family="Arial, sans-serif" font-size="56" font-weight="700" fill="#111827">${escapeXml(colonyLabels[1])}</text>`
+      : '';
+    const svg = `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="90mm" height="60mm" viewBox="0 0 900 600">\n  <rect width="900" height="600" rx="24" fill="white" stroke="#1f2937" stroke-width="10"/>\n  ${leftColonyLabel}${rightColonyLabel}\n  <image href="${qrDataUrl}" x="${qrX}" y="${qrY}" width="${qrWidth}" height="${qrWidth}"/>\n  <text x="450" y="565" text-anchor="middle" font-family="Arial, sans-serif" font-size="52" font-weight="700" fill="#111827">${escapeXml(hiveNumber)}</text>\n</svg>`;
     download(`kube-${filename}-qr-etikett.svg`, svg, 'image/svg+xml');
   };
 
   const downloadStl = () => {
     const qr = QRCode.create(qrCode, { errorCorrectionLevel: 'M' });
-    const qrSize = 34;
+    const qrSize = 30;
     const moduleSize = qrSize / qr.modules.size;
     const qrX = (BASE_WIDTH - qrSize) / 2;
-    const qrY = 16;
+    const qrY = 13;
     const modules: string[] = [];
+
     for (let row = 0; row < qr.modules.size; row += 1) {
       for (let column = 0; column < qr.modules.size; column += 1) {
         if (qr.modules.get(row, column)) {
@@ -121,7 +155,14 @@ export function HiveLabelDownloads({ hiveNumber, qrCode }: HiveLabelDownloadsPro
         }
       }
     }
-    const stl = `solid birokt_hive_label\n${cube(0, 0, 0, BASE_WIDTH, BASE_HEIGHT, BASE_DEPTH)}\n${modules.join('\n')}\n${labelTextBlocks(`KUBE ${hiveNumber}`).join('\n')}\nendsolid birokt_hive_label\n`;
+
+    const textBlocks = [
+      ...labelTextBlocks(hiveNumber, { x: BASE_WIDTH / 2, y: 3, maxWidth: qrSize + 8, maxScale: 1.2 }),
+      ...labelTextBlocks(colonyLabels[0], { x: qrX + 4.5, y: 46, maxWidth: 8, maxScale: 1 }),
+      ...(colonyLabels[1] ? labelTextBlocks(colonyLabels[1], { x: qrX + qrSize - 4.5, y: 46, maxWidth: 8, maxScale: 1 }) : []),
+    ];
+
+    const stl = `solid birokt_hive_label\n${cube(0, 0, 0, BASE_WIDTH, BASE_HEIGHT, BASE_DEPTH)}\n${modules.join('\n')}\n${textBlocks.join('\n')}\nendsolid birokt_hive_label\n`;
     download(`kube-${filename}-3d-merke.stl`, stl, 'model/stl');
   };
 
