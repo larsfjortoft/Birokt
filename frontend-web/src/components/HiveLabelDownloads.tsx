@@ -129,14 +129,14 @@ export function HiveLabelDownloads({ hiveNumber, qrCode, hiveType }: HiveLabelDo
 
   const downloadSvg = async () => {
     const qrDataUrl = await QRCode.toDataURL(qrCode, { errorCorrectionLevel: 'M', margin: 1, width: 900 });
-    const qrX = 220;
+    const qrX = 250;
     const qrY = 120;
-    const qrWidth = 460;
+    const qrWidth = 400;
     const leftColonyLabel = `<text x="${qrX + 22}" y="92" text-anchor="start" font-family="Arial, sans-serif" font-size="56" font-weight="700" fill="#111827">${escapeXml(colonyLabels[0])}</text>`;
     const rightColonyLabel = colonyLabels[1]
       ? `\n  <text x="${qrX + qrWidth - 22}" y="92" text-anchor="end" font-family="Arial, sans-serif" font-size="56" font-weight="700" fill="#111827">${escapeXml(colonyLabels[1])}</text>`
       : '';
-    const svg = `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="90mm" height="60mm" viewBox="0 0 900 600">\n  <rect width="900" height="600" rx="24" fill="white" stroke="#1f2937" stroke-width="10"/>\n  ${leftColonyLabel}${rightColonyLabel}\n  <image href="${qrDataUrl}" x="${qrX}" y="${qrY}" width="${qrWidth}" height="${qrWidth}"/>\n  <text x="450" y="565" text-anchor="middle" font-family="Arial, sans-serif" font-size="52" font-weight="700" fill="#111827">${escapeXml(hiveNumber)}</text>\n</svg>`;
+    const svg = `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="90mm" height="60mm" viewBox="0 0 900 600">\n  <rect width="900" height="600" rx="24" fill="white" stroke="#1f2937" stroke-width="10"/>\n  ${leftColonyLabel}${rightColonyLabel}\n  <image href="${qrDataUrl}" x="${qrX}" y="${qrY}" width="${qrWidth}" height="${qrWidth}"/>\n  <text x="450" y="575" text-anchor="middle" font-family="Arial, sans-serif" font-size="52" font-weight="700" fill="#111827">${escapeXml(hiveNumber)}</text>\n</svg>`;
     download(`kube-${filename}-qr-etikett.svg`, svg, 'image/svg+xml');
   };
 
