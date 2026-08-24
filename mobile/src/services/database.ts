@@ -183,6 +183,45 @@ export async function initDatabase(): Promise<SQLite.SQLiteDatabase> {
     CREATE INDEX IF NOT EXISTS idx_sync_queue_pending ON sync_queue(synced_at) WHERE synced_at IS NULL;
   `);
 
+  // Versioned, transactional migrations. CREATE TABLE IF NOT EXISTS above only
+  // establishes the legacy baseline; schema evolution is governed by user_version.
+  const versionRow = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
+  let version = versionRow?.user_version ?? 0;
+  if (version < 1) {
+    await db.execAsync(`
+      BEGIN IMMEDIATE;
+      ALTER TABLE inspections ADD COLUMN diseases TEXT NOT NULL DEFAULT '[]';
+      ALTER TABLE inspections ADD COLUMN pests TEXT NOT NULL DEFAULT '[]';
+      ALTER TABLE inspections ADD COLUMN colony_number INTEGER;
+      ALTER TABLE inspections ADD COLUMN version INTEGER NOT NULL DEFAULT 1;
+      ALTER TABLE treatments ADD COLUMN scope TEXT DEFAULT 'whole_hive';
+      ALTER TABLE treatments ADD COLUMN colony_number INTEGER;
+      ALTER TABLE treatments ADD COLUMN administered_amount REAL;
+      ALTER TABLE treatments ADD COLUMN administered_unit TEXT;
+      ALTER TABLE treatments ADD COLUMN supplier_name TEXT;
+      ALTER TABLE treatments ADD COLUMN supplier_address TEXT;
+      ALTER TABLE treatments ADD COLUMN acquisition_date TEXT;
+      ALTER TABLE treatments ADD COLUMN veterinarian_name TEXT;
+      ALTER TABLE treatments ADD COLUMN veterinarian_contact TEXT;
+      ALTER TABLE treatments ADD COLUMN prescription_reference TEXT;
+      ALTER TABLE treatments ADD COLUMN product_batch_number TEXT;
+      ALTER TABLE treatments ADD COLUMN ongoing INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE treatments ADD COLUMN version INTEGER NOT NULL DEFAULT 1;
+      ALTER TABLE sync_queue ADD COLUMN idempotency_key TEXT;
+      ALTER TABLE sync_queue ADD COLUMN base_version INTEGER;
+      ALTER TABLE sync_queue ADD COLUMN sync_status TEXT NOT NULL DEFAULT 'pending';
+      CREATE TABLE hive_placements (id TEXT PRIMARY KEY,hive_id TEXT NOT NULL,apiary_id TEXT NOT NULL,started_at TEXT NOT NULL,ended_at TEXT,movement_type TEXT NOT NULL,reason TEXT,movement_batch_id TEXT,voided_at TEXT,synced_at TEXT);
+      CREATE TABLE compliance_events (id TEXT PRIMARY KEY,apiary_id TEXT,hive_id TEXT,colony_number INTEGER,event_type TEXT NOT NULL,occurred_at TEXT NOT NULL,title TEXT NOT NULL,payload TEXT NOT NULL DEFAULT '{}',version INTEGER NOT NULL DEFAULT 1,voided_at TEXT,synced_at TEXT);
+      CREATE TABLE document_upload_queue (id TEXT PRIMARY KEY,entity_type TEXT NOT NULL,entity_local_id TEXT NOT NULL,local_path TEXT NOT NULL,metadata TEXT NOT NULL,idempotency_key TEXT NOT NULL,sync_status TEXT NOT NULL DEFAULT 'pending',last_error TEXT);
+      CREATE TABLE production_batches (id TEXT PRIMARY KEY,batch_number TEXT NOT NULL,payload TEXT NOT NULL,version INTEGER NOT NULL DEFAULT 1,synced_at TEXT);
+      CREATE INDEX idx_placements_hive ON hive_placements(hive_id,started_at);
+      CREATE INDEX idx_compliance_events_date ON compliance_events(occurred_at);
+      PRAGMA user_version = 1;
+      COMMIT;
+    `);
+    version = 1;
+  }
+
   if (__DEV__) console.log('Database initialized');
   return db;
 }

@@ -1,7 +1,7 @@
-import { getDatabase, isLocalId } from './database';
+import { getDatabase, isLocalId, generateLocalId } from './database';
 
 export type SyncOperation = 'CREATE' | 'UPDATE' | 'DELETE';
-export type EntityType = 'apiary' | 'hive' | 'inspection' | 'photo' | 'treatment' | 'feeding' | 'production';
+export type EntityType = 'apiary' | 'hive' | 'inspection' | 'photo' | 'treatment' | 'feeding' | 'production' | 'placement' | 'compliance_event' | 'production_batch' | 'document';
 
 export interface QueuedOperation {
   id: number;
@@ -12,6 +12,8 @@ export interface QueuedOperation {
   createdAt: string;
   attempts: number;
   lastError: string | null;
+  idempotencyKey: string | null;
+  baseVersion: number | null;
   syncedAt: string | null;
 }
 
@@ -25,9 +27,9 @@ export async function queueOperation(
   const db = getDatabase();
 
   const result = await db.runAsync(
-    `INSERT INTO sync_queue (operation, entity_type, entity_id, payload, created_at)
-     VALUES (?, ?, ?, ?, datetime('now'))`,
-    [operation, entityType, entityId, JSON.stringify(payload)]
+    `INSERT INTO sync_queue (operation, entity_type, entity_id, payload, idempotency_key, base_version, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`,
+    [operation, entityType, entityId, JSON.stringify(payload), generateLocalId(), typeof payload.baseVersion === 'number' ? payload.baseVersion : null]
   );
 
   if (__DEV__) console.log(`Queued ${operation} ${entityType} operation`, { entityId });
@@ -48,6 +50,8 @@ export async function getPendingOperations(): Promise<QueuedOperation[]> {
     attempts: number;
     last_error: string | null;
     synced_at: string | null;
+    idempotency_key: string | null;
+    base_version: number | null;
   }>(
     `SELECT * FROM sync_queue
      WHERE synced_at IS NULL
@@ -63,6 +67,8 @@ export async function getPendingOperations(): Promise<QueuedOperation[]> {
     createdAt: row.created_at,
     attempts: row.attempts,
     lastError: row.last_error,
+    idempotencyKey: row.idempotency_key,
+    baseVersion: row.base_version,
     syncedAt: row.synced_at,
   }));
 }
@@ -158,6 +164,9 @@ export async function updateLocalIdToServerId(
       [serverId, localId]
     );
   }
+  if (entityType === 'treatment') {
+    await db.runAsync('UPDATE document_upload_queue SET entity_local_id = ? WHERE entity_local_id = ?', [serverId, localId]);
+  }
 
   // Update sync queue references
   await db.runAsync(
@@ -191,6 +200,10 @@ function getTableName(entityType: EntityType): string {
     treatment: 'treatments',
     feeding: 'feedings',
     production: 'production',
+    placement: 'hive_placements',
+    compliance_event: 'compliance_events',
+    production_batch: 'production_batches',
+    document: 'document_upload_queue',
   };
   return tables[entityType];
 }

@@ -51,7 +51,7 @@ export async function exportInspectionsCsv(userId: string, year?: number): Promi
     'Dato', 'Bigard', 'Kube', 'Styrke', 'Temperament',
     'Dronning sett', 'Legger egg', 'Yngelrammer', 'Honningrammer',
     'Pollenrammer', 'Tomme rammer', 'Helsestatus', 'Varroatrykk',
-    'Temperatur', 'Vind', 'Vaer', 'Notater',
+    'Temperatur', 'Vind', 'Vaer', 'Sykdommer', 'Skadedyr', 'Notater',
   ];
 
   const rows = inspections.map(i => [
@@ -71,6 +71,8 @@ export async function exportInspectionsCsv(userId: string, year?: number): Promi
     i.temperature ?? '',
     i.windSpeed ?? '',
     i.weatherCondition || '',
+    i.diseases,
+    i.pests,
     i.notes || '',
   ]);
 
@@ -109,7 +111,9 @@ export async function exportTreatmentsCsv(userId: string, year?: number): Promis
   const headers = [
     'Dato', 'Bigard', 'Kube', 'Produkt', 'Produkttype',
     'Mal', 'Dosering', 'Startdato', 'Sluttdato',
-    'Tilbakeholdelsesdager', 'Tilbakeholdelse slutt', 'Notater',
+    'Omfang', 'Bifolk', 'Faktisk mengde', 'Enhet', 'Leverandor', 'Leverandoradresse',
+    'Anskaffelsesdato', 'Veterinaer', 'Veterinaerkontakt', 'Reseptreferanse', 'Batchnummer',
+    'Tilbakeholdelsesdager', 'Tilbakeholdelse slutt', 'Retensjon til', 'Annullert', 'Notater',
   ];
 
   const rows = treatments.map(t => [
@@ -122,8 +126,21 @@ export async function exportTreatmentsCsv(userId: string, year?: number): Promis
     t.dosage || '',
     formatDate(t.startDate),
     formatDate(t.endDate),
+    t.scope || '',
+    t.colonyNumber ?? '',
+    t.administeredAmount ?? '',
+    t.administeredUnit || '',
+    t.supplierName || '',
+    t.supplierAddress || '',
+    formatDate(t.acquisitionDate),
+    t.veterinarianName || '',
+    t.veterinarianContact || '',
+    t.prescriptionReference || '',
+    t.productBatchNumber || '',
     t.withholdingPeriodDays ?? '',
     formatDate(t.withholdingEndDate),
+    formatDate(t.retentionUntil),
+    t.voidedAt ? `Ja: ${t.voidReason || ''}` : 'Nei',
     t.notes || '',
   ]);
 

@@ -1,6 +1,6 @@
 import NetInfo from '@react-native-community/netinfo';
 import { logError } from '../lib/sentry';
-import { api, apiariesApi, hivesApi, inspectionsApi, treatmentsApi, feedingsApi, productionApi } from '../lib/api';
+import { api, apiariesApi, hivesApi, inspectionsApi, treatmentsApi, feedingsApi, productionApi, placementsApi, complianceEventsApi } from '../lib/api';
 import { isLocalId } from './database';
 import {
   getPendingOperations,
@@ -10,8 +10,8 @@ import {
   QueuedOperation,
 } from './syncQueue';
 import {
-  saveApiaries,
-  saveHives,
+  replaceApiaries,
+  replaceHives,
   saveInspections,
   saveTreatments,
   saveFeedings,
@@ -25,6 +25,8 @@ import {
   LocalTreatment,
   LocalFeeding,
   LocalProduction,
+  getPendingComplianceDocuments,
+  markComplianceDocumentSynced,
 } from './offlineData';
 
 export interface SyncResult {
@@ -86,6 +88,13 @@ export async function syncPendingOperations(): Promise<SyncResult> {
     errors.push(`PHOTO: ${errorMsg}`);
     failedCount++;
   }
+  try {
+    for(const doc of await getPendingComplianceDocuments()){
+      if(isLocalId(doc.entity_local_id))continue;const metadata=JSON.parse(doc.metadata);
+      await api.uploadComplianceDocument(doc.local_path,{entityType:doc.entity_type,entityId:doc.entity_local_id,documentType:metadata.documentType||'other'});
+      await markComplianceDocumentSynced(doc.id);
+    }
+  } catch(error){errors.push(`DOCUMENT: ${error instanceof Error?error.message:'Unknown error'}`);failedCount++;}
 
   return {
     success: failedCount === 0,
@@ -139,13 +148,21 @@ async function syncOperation(op: QueuedOperation): Promise<void> {
       await syncInspection(operation, entityId, payload);
       break;
     case 'treatment':
-      await syncTreatment(operation, entityId, payload);
+      await syncTreatment(operation, entityId, payload, op.idempotencyKey || undefined);
       break;
     case 'feeding':
       await syncFeeding(operation, entityId, payload);
       break;
     case 'production':
       await syncProduction(operation, entityId, payload);
+      break;
+    case 'placement':
+      if (operation !== 'CREATE') throw new Error('Unsupported placement operation');
+      await placementsApi.batchMove(payload as any, op.idempotencyKey || undefined);
+      break;
+    case 'compliance_event':
+      if (operation !== 'CREATE') throw new Error('Unsupported compliance event operation');
+      await complianceEventsApi.create(payload, op.idempotencyKey || undefined);
       break;
     default:
       throw new Error(`Unknown entity type: ${entityType}`);
@@ -171,7 +188,7 @@ async function syncInspection(
       weather: payload.weather as { temperature?: number; windSpeed?: number; condition?: string },
       assessment: payload.assessment as { strength?: string; temperament?: string; queenSeen?: boolean; queenLaying?: boolean },
       frames: payload.frames as { brood?: number; honey?: number; pollen?: number; empty?: number },
-      health: payload.health as { status?: string; varroaLevel?: string },
+      health: payload.health as { status?: string; varroaLevel?: string; diseases?: string[]; pests?: string[] },
       notes: payload.notes as string | undefined,
     });
 
@@ -187,7 +204,8 @@ async function syncInspection(
 async function syncTreatment(
   operation: string,
   localId: string | null,
-  payload: Record<string, unknown>
+  payload: Record<string, unknown>,
+  idempotencyKey?: string
 ): Promise<void> {
   if (operation === 'CREATE') {
     let hiveId = payload.hiveId as string;
@@ -197,16 +215,27 @@ async function syncTreatment(
 
     const response = await treatmentsApi.create({
       hiveId,
-      treatmentDate: payload.treatmentDate as string,
       productName: payload.productName as string,
       productType: payload.productType as string | undefined,
       target: payload.target as string | undefined,
       dosage: payload.dosage as string | undefined,
       startDate: (payload.startDate as string) || new Date().toISOString(),
       endDate: payload.endDate as string | undefined,
-      withholdingPeriodDays: payload.withholdingPeriodDays as number | undefined,
+      ongoing: Boolean(payload.ongoing),
+      scope: (payload.scope as 'whole_hive' | 'colony') || 'whole_hive',
+      colonyNumber: payload.colonyNumber as number | undefined,
+      administeredAmount: payload.administeredAmount as number,
+      administeredUnit: payload.administeredUnit as string,
+      supplierName: payload.supplierName as string,
+      supplierAddress: payload.supplierAddress as string | undefined,
+      acquisitionDate: payload.acquisitionDate as string,
+      veterinarianName: payload.veterinarianName as string | undefined,
+      veterinarianContact: payload.veterinarianContact as string | undefined,
+      prescriptionReference: payload.prescriptionReference as string | undefined,
+      productBatchNumber: payload.productBatchNumber as string | undefined,
+      withholdingPeriodDays: payload.withholdingPeriodDays as number,
       notes: payload.notes as string | undefined,
-    });
+    }, idempotencyKey);
 
     if (localId && response.data?.id) {
       await updateLocalIdToServerId('treatment', localId, response.data.id);
@@ -311,7 +340,7 @@ export async function pullFromServer(): Promise<{
         stats: a.stats,
         updatedAt: new Date().toISOString(),
       }));
-      await saveApiaries(localApiaries);
+      await replaceApiaries(localApiaries);
       apiaryCount = localApiaries.length;
       await updateLastSync('apiaries');
     }
@@ -337,7 +366,7 @@ export async function pullFromServer(): Promise<{
         },
         updatedAt: new Date().toISOString(),
       }));
-      await saveHives(localHives);
+      await replaceHives(localHives);
       hiveCount = localHives.length;
       await updateLastSync('hives');
     }

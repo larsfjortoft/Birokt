@@ -27,8 +27,9 @@ interface Queen {
   temperament?: string;
   productivity?: string;
   swarmTendency?: string;
+  currentColonyNumber?: number | null;
   mother?: { id: string; queenCode: string } | null;
-  currentHive?: { id: string; hiveNumber: string; apiaryName: string } | null;
+  currentHive?: { id: string; hiveNumber: string; hiveType: string; apiaryName: string } | null;
   daughterCount: number;
   notes?: string;
   createdAt: string;
@@ -37,6 +38,7 @@ interface Queen {
 interface Hive {
   id: string;
   hiveNumber: string;
+  hiveType: string;
   apiary: { id: string; name: string };
 }
 
@@ -48,6 +50,11 @@ const statusLabels: Record<string, string> = {
   dead: 'Død',
   sold: 'Solgt',
   missing: 'Savnet',
+};
+
+const displayStatusLabels: Record<string, string> = {
+  ...statusLabels,
+  dead: 'D\u00f8d',
 };
 
 const statusVariants: Record<string, 'success' | 'warning' | 'danger' | 'default' | 'secondary'> = {
@@ -82,7 +89,7 @@ export default function QueensPage() {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const queryParams: Record<string, string> = {};
+  const queryParams: Record<string, string> = { perPage: '100' };
   if (filterStatus !== 'all') queryParams.status = filterStatus;
   if (searchQuery) queryParams.search = searchQuery;
 
@@ -96,10 +103,16 @@ export default function QueensPage() {
     queryFn: () => hivesApi.list(),
   });
 
+  const { data: placementQueensResponse } = useQuery({
+    queryKey: ['queens', 'placement-options'],
+    queryFn: () => queensApi.list({ perPage: '100' }),
+  });
+
   const queens = (queensResponse?.data || []) as Queen[];
   const hives = (hivesResponse?.data || []) as Hive[];
+  const placementQueens = (placementQueensResponse?.data || []) as Queen[];
 
-  const totalQueens = queens.length;
+  const totalQueens = queensResponse?.meta.pagination?.total ?? queens.length;
   const activeQueens = queens.filter(q => q.status === 'laying').length;
   const thisYearQueens = queens.filter(q => q.year === new Date().getFullYear()).length;
 
@@ -180,7 +193,7 @@ export default function QueensPage() {
               size="sm"
               onClick={() => setFilterStatus(status)}
             >
-              {status === 'all' ? 'Alle' : statusLabels[status] || status}
+              {status === 'all' ? 'Alle' : displayStatusLabels[status] || status}
             </Button>
           ))}
         </div>
@@ -226,7 +239,7 @@ export default function QueensPage() {
                       <div className="flex items-center gap-2">
                         <h3 className="font-medium text-gray-900">{queen.queenCode}</h3>
                         <Badge variant={statusVariants[queen.status] || 'default'}>
-                          {statusLabels[queen.status] || queen.status}
+                          {displayStatusLabels[queen.status] || queen.status}
                         </Badge>
                         {queen.marked && (
                           <Badge variant="secondary">Merket</Badge>
@@ -239,7 +252,12 @@ export default function QueensPage() {
                       </div>
                       {queen.currentHive && (
                         <p className="text-sm text-gray-500 mt-1">
-                          Kube {queen.currentHive.hiveNumber} - {queen.currentHive.apiaryName}
+                          Kube {queen.currentHive.hiveNumber}
+                          {queen.currentHive.hiveType === 'double_queen' && queen.currentColonyNumber
+                            ? ` - Bifolk ${queen.currentColonyNumber}`
+                            : ''}
+                          {' - '}
+                          {queen.currentHive.apiaryName}
                         </p>
                       )}
                       <div className="flex items-center gap-3 mt-1">
@@ -274,7 +292,7 @@ export default function QueensPage() {
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         hives={hives}
-        queens={queens}
+        queens={placementQueens}
       />
     </div>
   );
@@ -303,6 +321,9 @@ function CreateQueenModal({
     origin: 'own_production',
     status: 'virgin',
     currentHiveId: '',
+    currentColonyNumber: '',
+    replaceExisting: false,
+    replacementAction: 'remove' as 'remove' | 'dead',
     motherId: '',
     notes: '',
   });
@@ -322,15 +343,35 @@ function CreateQueenModal({
         origin: 'own_production',
         status: 'virgin',
         currentHiveId: '',
+        currentColonyNumber: '',
+        replaceExisting: false,
+        replacementAction: 'remove',
         motherId: '',
         notes: '',
       });
     },
   });
 
+  const selectedHive = hives.find((hive) => hive.id === formData.currentHiveId);
+  const selectedColonyNumber = selectedHive?.hiveType === 'double_queen'
+    ? (formData.currentColonyNumber ? Number(formData.currentColonyNumber) : undefined)
+    : (selectedHive ? 1 : undefined);
+
+  const conflictingQueen = selectedHive
+    ? queens.find((queen) => {
+        if (queen.currentHive?.id !== selectedHive.id) return false;
+        if (selectedHive.hiveType === 'double_queen') {
+          return selectedColonyNumber !== undefined && queen.currentColonyNumber === selectedColonyNumber;
+        }
+        return true;
+      })
+    : undefined;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.queenCode) return;
+    if (selectedHive?.hiveType === 'double_queen' && !selectedColonyNumber) return;
+    if (conflictingQueen && !formData.replaceExisting) return;
 
     createMutation.mutate({
       queenCode: formData.queenCode,
@@ -342,6 +383,9 @@ function CreateQueenModal({
       origin: formData.origin,
       status: formData.status,
       currentHiveId: formData.currentHiveId || undefined,
+      currentColonyNumber: selectedColonyNumber,
+      replaceExisting: conflictingQueen ? formData.replaceExisting : undefined,
+      replacementAction: conflictingQueen && formData.replaceExisting ? formData.replacementAction : undefined,
       motherId: formData.motherId || undefined,
       notes: formData.notes || undefined,
     });
@@ -462,7 +506,7 @@ function CreateQueenModal({
             onChange={(e) => setFormData((prev) => ({ ...prev, status: e.target.value }))}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-honey-500"
           >
-            {Object.entries(statusLabels).map(([value, label]) => (
+            {Object.entries(displayStatusLabels).map(([value, label]) => (
               <option key={value} value={value}>{label}</option>
             ))}
           </select>
@@ -474,13 +518,26 @@ function CreateQueenModal({
             <label className="block text-sm font-medium text-gray-700 mb-2">Kube</label>
             <select
               value={formData.currentHiveId}
-              onChange={(e) => setFormData((prev) => ({ ...prev, currentHiveId: e.target.value }))}
+              onChange={(e) => {
+                const hiveId = e.target.value;
+                const hive = hives.find((item) => item.id === hiveId);
+                setFormData((prev) => ({
+                  ...prev,
+                  currentHiveId: hiveId,
+                  currentColonyNumber: hive?.hiveType === 'double_queen' ? prev.currentColonyNumber : '',
+                  replaceExisting: false,
+                  replacementAction: 'remove',
+                }));
+              }}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-honey-500"
             >
               <option value="">Ingen kube</option>
               {hives.map((hive) => (
                 <option key={hive.id} value={hive.id}>
-                  Kube {hive.hiveNumber} - {hive.apiary.name}
+                  Kube {hive.hiveNumber}
+                  {hive.hiveType === 'double_queen' ? ' - To dronninger' : ''}
+                  {' - '}
+                  {hive.apiary.name}
                 </option>
               ))}
             </select>
@@ -501,6 +558,73 @@ function CreateQueenModal({
             </select>
           </div>
         </div>
+
+        {selectedHive?.hiveType === 'double_queen' && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Bifolk *</label>
+            <select
+              value={formData.currentColonyNumber}
+              onChange={(e) => setFormData((prev) => ({
+                ...prev,
+                currentColonyNumber: e.target.value,
+                replaceExisting: false,
+                replacementAction: 'remove',
+              }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-honey-500"
+              required
+            >
+              <option value="">Velg bifolk...</option>
+              <option value="1">Bifolk 1</option>
+              <option value="2">Bifolk 2</option>
+            </select>
+          </div>
+        )}
+
+        {conflictingQueen && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 space-y-3">
+            <p className="text-sm text-amber-900">
+              {selectedHive?.hiveType === 'double_queen' && selectedColonyNumber
+                ? `Bifolk ${selectedColonyNumber} har allerede dronning ${conflictingQueen.queenCode}.`
+                : `Kuben har allerede dronning ${conflictingQueen.queenCode}.`}
+            </p>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.replaceExisting}
+                onChange={(e) => setFormData((prev) => ({ ...prev, replaceExisting: e.target.checked }))}
+                className="rounded border-amber-300 text-honey-600 focus:ring-honey-500"
+              />
+              <span className="text-sm text-amber-900">Erstatt eksisterende dronning</span>
+            </label>
+            {formData.replaceExisting && (
+              <div>
+                <label className="block text-sm font-medium text-amber-900 mb-2">Hva skal skje med dronningen som tas ut?</label>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="replacementAction"
+                      checked={formData.replacementAction === 'remove'}
+                      onChange={() => setFormData((prev) => ({ ...prev, replacementAction: 'remove' }))}
+                      className="border-amber-300 text-honey-600 focus:ring-honey-500"
+                    />
+                    <span className="text-sm text-amber-900">Tas ut</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="replacementAction"
+                      checked={formData.replacementAction === 'dead'}
+                      onChange={() => setFormData((prev) => ({ ...prev, replacementAction: 'dead' }))}
+                      className="border-amber-300 text-honey-600 focus:ring-honey-500"
+                    />
+                    <span className="text-sm text-amber-900">Settes til død</span>
+                  </label>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Notes */}
         <div>

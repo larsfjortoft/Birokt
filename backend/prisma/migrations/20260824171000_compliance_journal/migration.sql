@@ -1,0 +1,1 @@
+-- Compatibility no-op. The complete compliance migration is 20260824170500.

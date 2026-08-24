@@ -47,6 +47,15 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="field"
+        options={{
+          title: 'Felt',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="mic-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="scanner"
         options={{
           title: 'Skann',

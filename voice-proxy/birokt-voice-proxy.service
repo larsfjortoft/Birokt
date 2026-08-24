@@ -1,0 +1,17 @@
+[Unit]
+Description=Birokt Field Voice Proxy
+After=network-online.target hermes-gateway.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=lars
+Group=lars
+WorkingDirectory=/home/lars/birokt-voice-proxy
+EnvironmentFile=-/home/lars/birokt-voice-proxy/.env
+ExecStart=/home/lars/.hermes/hermes-agent/venv/bin/python /home/lars/birokt-voice-proxy/birokt_voice_proxy.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

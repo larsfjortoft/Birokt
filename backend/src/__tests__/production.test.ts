@@ -119,7 +119,7 @@ describe('Production API', () => {
   });
 
   describe('DELETE /api/v1/production/:id', () => {
-    it('should delete production record', async () => {
+    it('should protect production record from hard deletion', async () => {
       const createRes = await testRequest
         .post('/api/v1/production')
         .set('Authorization', `Bearer ${user.accessToken}`)
@@ -134,7 +134,7 @@ describe('Production API', () => {
       await testRequest
         .delete(`/api/v1/production/${createRes.body.data.id}`)
         .set('Authorization', `Bearer ${user.accessToken}`)
-        .expect(204);
+        .expect(409);
     });
   });
 });

@@ -4,10 +4,18 @@ const prisma = new PrismaClient();
 
 async function cleanDatabase() {
   // Delete in correct order due to foreign key constraints
+  await prisma.auditLog.deleteMany();
+  await prisma.complianceDocument.deleteMany();
+  await prisma.productionBatchSource.deleteMany();
+  await prisma.productionBatch.deleteMany();
+  await prisma.complianceEvent.deleteMany();
+  await prisma.idempotencyRequest.deleteMany();
+  await prisma.hivePlacement.deleteMany();
   await prisma.inspectionAction.deleteMany();
   await prisma.photo.deleteMany();
   await prisma.inspection.deleteMany();
   await prisma.treatment.deleteMany();
+  await prisma.medicineAcquisition.deleteMany();
   await prisma.feeding.deleteMany();
   await prisma.production.deleteMany();
   await prisma.queenHiveLog.deleteMany();

@@ -16,11 +16,34 @@ import {
   generateHiveReport,
   generateApiaryReport,
 } from '../services/pdfReport.js';
+import { compliancePdf, complianceZip } from '../services/complianceExport.js';
+import backendPackage from '../../package.json';
 
 const router = Router();
 
 // All routes require authentication
 router.use(authenticate);
+
+const complianceReportQuery = z.object({
+  from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  apiaryId: z.string().uuid().optional(),
+  format: z.enum(['pdf']).default('pdf'),
+});
+const complianceExportQuery = complianceReportQuery.omit({ apiaryId: true, format: true }).extend({ format: z.enum(['zip']).default('zip') });
+
+router.get('/reports/compliance', validateQuery(complianceReportQuery), async (req, res) => {
+  const from = new Date(`${req.query.from}T00:00:00.000Z`); const to = new Date(`${req.query.to}T23:59:59.999Z`);
+  const pdf = await compliancePdf(req.user!.id, from, to, req.query.apiaryId as string | undefined);
+  await prisma.auditLog.create({ data: { userId: req.user!.id, entityType: 'ComplianceExport', entityId: res.locals.requestId, action: 'export', afterJson: JSON.stringify({ from, to, format: 'pdf' }), requestId: res.locals.requestId } });
+  res.type('application/pdf').setHeader('Content-Disposition', 'attachment; filename="myndighetsjournal.pdf"'); res.send(pdf);
+});
+router.get('/export/compliance', validateQuery(complianceExportQuery), async (req, res) => {
+  const from = new Date(`${req.query.from}T00:00:00.000Z`); const to = new Date(`${req.query.to}T23:59:59.999Z`);
+  const zip = await complianceZip(req.user!.id, from, to, backendPackage.version);
+  await prisma.auditLog.create({ data: { userId: req.user!.id, entityType: 'ComplianceExport', entityId: res.locals.requestId, action: 'export', afterJson: JSON.stringify({ from, to, format: 'zip' }), requestId: res.locals.requestId } });
+  res.type('application/zip').setHeader('Content-Disposition', 'attachment; filename="myndighetsjournal.zip"'); res.send(zip);
+});
 
 // Validation schemas
 const overviewQuerySchema = z.object({

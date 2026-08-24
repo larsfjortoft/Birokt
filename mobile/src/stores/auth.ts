@@ -68,23 +68,15 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   logout: async () => {
     await api.clearTokens();
-    set({ user: null, isAuthenticated: false, isLoading: false });
+    set({ user: localUser, isAuthenticated: true, isLoading: false });
   },
 
   checkAuth: async () => {
     set({ isLoading: true });
-    try {
-      // The Raspberry Pi installation is intentionally single-user. Requests
-      // without a bearer token are attached to its one local Birøkt user.
-      const response = await authApi.me();
-      if (response.data) {
-        set({ user: response.data, isAuthenticated: true, isLoading: false });
-        return;
-      }
-    } catch {
-      await api.clearTokens();
-    }
-    set({ user: null, isAuthenticated: false, isLoading: false });
+    // The private Raspberry Pi installation is intentionally single-user.
+    // Discard stale cloud tokens and keep the local identity active.
+    await api.clearTokens();
+    set({ user: localUser, isAuthenticated: true, isLoading: false });
   },
 
   updateProfile: async (data) => {

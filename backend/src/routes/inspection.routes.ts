@@ -9,6 +9,8 @@ import { validateBody, validateQuery, validateParams } from '../middleware/valid
 import { authenticate } from '../middleware/auth.js';
 import { sendSuccess, sendError, ErrorCodes, calculatePagination } from '../utils/response.js';
 import prisma from '../utils/prisma.js';
+import { auditData } from '../services/complianceService.js';
+import { executeIdempotent } from '../services/idempotencyService.js';
 
 const router = Router();
 
@@ -397,7 +399,8 @@ router.post('/', validateBody(createInspectionSchema), async (req: Request, res:
     }
 
     // Create inspection with optional actions
-    const inspection = await prisma.inspection.create({
+    const inspection = await executeIdempotent(req, res, 201, () => prisma.$transaction(async tx => {
+      const created = await tx.inspection.create({
       data: {
         hiveId,
         userId,
@@ -440,7 +443,7 @@ router.post('/', validateBody(createInspectionSchema), async (req: Request, res:
     });
 
     // Update hive with latest stats
-    await prisma.hive.update({
+    await tx.hive.update({
       where: { id: hiveId },
       data: {
         strength: primaryColony?.strength || assessment?.strength,
@@ -448,6 +451,10 @@ router.post('/', validateBody(createInspectionSchema), async (req: Request, res:
         currentHoneyFrames: frames?.honey,
       },
     });
+    await tx.auditLog.create({ data: auditData({ userId, entityType: 'Inspection', entityId: created.id, action: 'create', after: created, requestId: res.locals.requestId }) });
+    return created;
+    }));
+    if (!inspection) return;
 
     sendSuccess(res, {
       id: inspection.id,
@@ -732,9 +739,8 @@ router.delete('/:id', validateParams(idParamSchema), async (req: Request, res: R
       return;
     }
 
-    await prisma.inspection.delete({ where: { id } });
-
-    res.status(204).send();
+    sendError(res, ErrorCodes.RECORD_RETENTION_PROTECTED, 'Inspeksjonsjournalen kan ikke slettes permanent. Bruk annullering med begrunnelse.', 409);
+    return;
   } catch (error) {
     console.error('Delete inspection error:', error);
     sendError(res, ErrorCodes.INTERNAL_ERROR, 'Failed to delete inspection', 500);

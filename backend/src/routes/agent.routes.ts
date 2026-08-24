@@ -61,6 +61,8 @@ All responses use \`{ success, data, meta }\`. Send JSON with
 - Create, update and delete actions change the same data shown in the web and mobile apps.
 - Never delete records unless the user explicitly asks. Report the created or changed record afterwards.
 - Use ISO dates, for example \`2026-06-21\`.
+- For queen placement, double-queen hives require \`currentColonyNumber\` = \`1\` or \`2\`.
+- If a hive slot already has a queen, set \`replaceExisting: true\` and choose \`replacementAction: "remove"\` or \`"dead"\`.
 
 ## Examples
 
@@ -73,6 +75,16 @@ curl -s '${baseUrl}/search?q=Innom%20Elva'
 curl -s -X POST ${baseUrl}/inspections \\
   -H 'Content-Type: application/json' \\
   -d '{"hiveId":"HIVE_ID","inspectionDate":"2026-06-21","healthStatus":"healthy","strength":"medium"}'
+
+# Place a new queen in colony 2 of a double-queen hive, replacing the current queen
+curl -s -X POST ${baseUrl}/queens \\
+  -H 'Content-Type: application/json' \\
+  -d '{"queenCode":"S26-12","year":2026,"status":"laying","currentHiveId":"HIVE_ID","currentColonyNumber":2,"replaceExisting":true,"replacementAction":"remove"}'
+
+# Move a queen into colony 1 and mark the replaced queen dead
+curl -s -X POST ${baseUrl}/queens/QUEEN_ID/move \\
+  -H 'Content-Type: application/json' \\
+  -d '{"hiveId":"HIVE_ID","currentColonyNumber":1,"replaceExisting":true,"replacementAction":"dead","date":"2026-06-27T12:00:00.000Z","reason":"Queen replacement"}'
 
 # List action items
 curl -s ${baseUrl}/stats/actions-needed

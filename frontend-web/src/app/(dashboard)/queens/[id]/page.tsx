@@ -18,7 +18,7 @@ const statusLabels: Record<string, string> = {
   mated: 'Paret',
   laying: 'Leggende',
   failed: 'Feilet',
-  dead: 'Dod',
+  dead: 'D\u00f8d',
   sold: 'Solgt',
   missing: 'Savnet',
 };
@@ -70,7 +70,15 @@ const actionLabels: Record<string, string> = {
 interface Hive {
   id: string;
   hiveNumber: string;
+  hiveType: string;
   apiary: { id: string; name: string };
+}
+
+interface PlacementQueen {
+  id: string;
+  queenCode: string;
+  currentColonyNumber?: number | null;
+  currentHive?: { id: string; hiveNumber: string; hiveType: string; apiaryName: string } | null;
 }
 
 export default function QueenDetailPage() {
@@ -90,6 +98,11 @@ export default function QueenDetailPage() {
   const { data: hivesResponse } = useQuery({
     queryKey: ['hives'],
     queryFn: () => hivesApi.list(),
+  });
+
+  const { data: placementQueensResponse } = useQuery({
+    queryKey: ['queens', 'placement-options'],
+    queryFn: () => queensApi.list({ perPage: '100' }),
   });
 
   const deleteMutation = useMutation({
@@ -121,6 +134,7 @@ export default function QueenDetailPage() {
 
   const queen = response.data;
   const hives = (hivesResponse?.data || []) as Hive[];
+  const placementQueens = ((placementQueensResponse?.data || []) as PlacementQueen[]).filter((item) => item.id !== queenId);
 
   return (
     <div className="space-y-6">
@@ -152,7 +166,12 @@ export default function QueenDetailPage() {
                   href={`/hives/${queen.currentHive.id}`}
                   className="text-gray-500 hover:text-honey-600 text-sm"
                 >
-                  Kube {queen.currentHive.hiveNumber} - {queen.currentHive.apiaryName}
+                  Kube {queen.currentHive.hiveNumber}
+                  {queen.currentHive.hiveType === 'double_queen' && queen.currentColonyNumber
+                    ? ` - Bifolk ${queen.currentColonyNumber}`
+                    : ''}
+                  {' - '}
+                  {queen.currentHive.apiaryName}
                 </Link>
               )}
             </div>
@@ -355,7 +374,10 @@ export default function QueenDetailPage() {
                           {actionLabels[entry.action] || entry.action}
                         </span>
                         <span className="text-sm text-gray-500">
-                          Kube {entry.hive.hiveNumber} - {entry.hive.apiaryName}
+                          Kube {entry.hive.hiveNumber}
+                          {entry.colonyNumber ? ` - Bifolk ${entry.colonyNumber}` : ''}
+                          {' - '}
+                          {entry.hive.apiaryName}
                         </span>
                       </div>
                       <p className="text-sm text-gray-500">{formatDate(entry.date)}</p>
@@ -392,7 +414,9 @@ export default function QueenDetailPage() {
         onClose={() => setShowMoveModal(false)}
         queenId={queenId}
         hives={hives}
+        queens={placementQueens}
         currentHiveId={queen.currentHiveId}
+        currentColonyNumber={queen.currentColonyNumber}
       />
 
       {/* Edit modal */}
@@ -427,38 +451,83 @@ function MoveQueenModal({
   onClose,
   queenId,
   hives,
+  queens,
   currentHiveId,
+  currentColonyNumber,
 }: {
   isOpen: boolean;
   onClose: () => void;
   queenId: string;
   hives: Hive[];
+  queens: PlacementQueen[];
   currentHiveId?: string;
+  currentColonyNumber?: number | null;
 }) {
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState({
     hiveId: '',
+    currentColonyNumber: '',
+    replaceExisting: false,
+    replacementAction: 'remove' as 'remove' | 'dead',
     date: new Date().toISOString().slice(0, 10),
     reason: '',
     notes: '',
   });
 
   const moveMutation = useMutation({
-    mutationFn: (data: { hiveId: string; date: string; reason?: string; notes?: string }) =>
+    mutationFn: (data: {
+      hiveId: string;
+      currentColonyNumber?: number;
+      replaceExisting?: boolean;
+      replacementAction?: 'remove' | 'dead';
+      date: string;
+      reason?: string;
+      notes?: string;
+    }) =>
       queensApi.move(queenId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['queen', queenId] });
       queryClient.invalidateQueries({ queryKey: ['queens'] });
       onClose();
-      setFormData({ hiveId: '', date: new Date().toISOString().slice(0, 10), reason: '', notes: '' });
+      setFormData({
+        hiveId: '',
+        currentColonyNumber: '',
+        replaceExisting: false,
+        replacementAction: 'remove',
+        date: new Date().toISOString().slice(0, 10),
+        reason: '',
+        notes: '',
+      });
     },
   });
+
+  const selectedHive = hives.find((hive) => hive.id === formData.hiveId);
+  const selectedColonyNumber = selectedHive?.hiveType === 'double_queen'
+    ? (formData.currentColonyNumber ? Number(formData.currentColonyNumber) : undefined)
+    : (selectedHive ? 1 : undefined);
+
+  const conflictingQueen = selectedHive
+    ? queens.find((queen) => {
+        if (queen.currentHive?.id !== selectedHive.id) return false;
+        if (selectedHive.hiveType === 'double_queen') {
+          return selectedColonyNumber !== undefined && queen.currentColonyNumber === selectedColonyNumber;
+        }
+        return true;
+      })
+    : undefined;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.hiveId) return;
+    if (selectedHive?.hiveType === 'double_queen' && !selectedColonyNumber) return;
+    if (selectedHive && selectedHive.id === currentHiveId && selectedColonyNumber === (currentColonyNumber ?? 1)) return;
+    if (conflictingQueen && !formData.replaceExisting) return;
+
     moveMutation.mutate({
       hiveId: formData.hiveId,
+      currentColonyNumber: selectedColonyNumber,
+      replaceExisting: conflictingQueen ? formData.replaceExisting : undefined,
+      replacementAction: conflictingQueen && formData.replaceExisting ? formData.replacementAction : undefined,
       date: new Date(formData.date).toISOString(),
       reason: formData.reason || undefined,
       notes: formData.notes || undefined,
@@ -472,20 +541,97 @@ function MoveQueenModal({
           <label className="block text-sm font-medium text-gray-700 mb-2">Ny kube *</label>
           <select
             value={formData.hiveId}
-            onChange={(e) => setFormData((prev) => ({ ...prev, hiveId: e.target.value }))}
+            onChange={(e) => {
+              const hiveId = e.target.value;
+              const hive = hives.find((item) => item.id === hiveId);
+              setFormData((prev) => ({
+                ...prev,
+                hiveId,
+                currentColonyNumber: hive?.hiveType === 'double_queen' ? prev.currentColonyNumber : '',
+                replaceExisting: false,
+                replacementAction: 'remove',
+              }));
+            }}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-honey-500"
             required
           >
             <option value="">Velg kube...</option>
             {hives
-              .filter((h) => h.id !== currentHiveId)
               .map((hive) => (
                 <option key={hive.id} value={hive.id}>
-                  Kube {hive.hiveNumber} - {hive.apiary.name}
+                  Kube {hive.hiveNumber}
+                  {hive.hiveType === 'double_queen' ? ' - To dronninger' : ''}
+                  {' - '}
+                  {hive.apiary.name}
                 </option>
               ))}
           </select>
         </div>
+        {selectedHive?.hiveType === 'double_queen' && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Bifolk *</label>
+            <select
+              value={formData.currentColonyNumber}
+              onChange={(e) => setFormData((prev) => ({
+                ...prev,
+                currentColonyNumber: e.target.value,
+                replaceExisting: false,
+                replacementAction: 'remove',
+              }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-honey-500"
+              required
+            >
+              <option value="">Velg bifolk...</option>
+              <option value="1">Bifolk 1</option>
+              <option value="2">Bifolk 2</option>
+            </select>
+          </div>
+        )}
+        {conflictingQueen && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 space-y-3">
+            <p className="text-sm text-amber-900">
+              {selectedHive?.hiveType === 'double_queen' && selectedColonyNumber
+                ? `Bifolk ${selectedColonyNumber} har allerede dronning ${conflictingQueen.queenCode}.`
+                : `Kuben har allerede dronning ${conflictingQueen.queenCode}.`}
+            </p>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.replaceExisting}
+                onChange={(e) => setFormData((prev) => ({ ...prev, replaceExisting: e.target.checked }))}
+                className="rounded border-amber-300 text-honey-600 focus:ring-honey-500"
+              />
+              <span className="text-sm text-amber-900">Erstatt eksisterende dronning</span>
+            </label>
+            {formData.replaceExisting && (
+              <div>
+                <label className="block text-sm font-medium text-amber-900 mb-2">Hva skal skje med dronningen som tas ut?</label>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="replacementAction"
+                      checked={formData.replacementAction === 'remove'}
+                      onChange={() => setFormData((prev) => ({ ...prev, replacementAction: 'remove' }))}
+                      className="border-amber-300 text-honey-600 focus:ring-honey-500"
+                    />
+                    <span className="text-sm text-amber-900">Tas ut</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="replacementAction"
+                      checked={formData.replacementAction === 'dead'}
+                      onChange={() => setFormData((prev) => ({ ...prev, replacementAction: 'dead' }))}
+                      className="border-amber-300 text-honey-600 focus:ring-honey-500"
+                    />
+                    <span className="text-sm text-amber-900">Settes til død</span>
+                  </label>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Dato *</label>
           <input

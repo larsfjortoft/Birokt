@@ -87,3 +87,26 @@ export async function createTestHive(
   });
 }
 
+export async function createTestQueen(
+  user: TestUser,
+  data?: {
+    queenCode?: string;
+    year?: number;
+    status?: string;
+    currentHiveId?: string | null;
+    currentColonyNumber?: number | null;
+  },
+) {
+  return prisma.queen.create({
+    data: {
+      queenCode: data?.queenCode || `Q-${Date.now()}`,
+      year: data?.year || 2026,
+      status: data?.status || 'laying',
+      userId: user.id,
+      currentHiveId: data?.currentHiveId ?? null,
+      currentColonyNumber: data?.currentColonyNumber ?? null,
+      statusDate: new Date(),
+    },
+  });
+}
+

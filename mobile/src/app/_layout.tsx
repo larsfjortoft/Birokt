@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { View } from 'react-native';
+import { AppState, Platform, View } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { focusManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAuthStore } from '../stores/auth';
 import { initDatabase } from '../services/database';
 import { OfflineIndicator } from '../components/OfflineIndicator';
@@ -17,12 +17,27 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 1,
-      staleTime: 1000 * 60 * 5, // 5 minutes
+      staleTime: 1000 * 60, // 1 minute
+      refetchOnReconnect: 'always',
+      refetchOnWindowFocus: 'always',
     },
   },
 });
 
+function useReactQueryAppState() {
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      focusManager.setFocused(nextState === 'active');
+    });
+
+    return () => subscription.remove();
+  }, []);
+}
+
 export default function RootLayout() {
+  useReactQueryAppState();
   const { checkAuth, isLoading } = useAuthStore();
   const [dbInitialized, setDbInitialized] = useState(false);
 

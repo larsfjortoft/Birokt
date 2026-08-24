@@ -18,13 +18,15 @@ type ApiaryListItem = {
   description?: string;
   location?: { name?: string; lat?: number; lng?: number };
   active: boolean;
+  type?: string; registrationNumber?: string; operatorName?: string; operatorAddress?: string; organizationNumber?: string;
 };
+const emptyApiary = { name: '', description: '', locationName: '', lat: '', lng: '', type: 'permanent', registrationNumber: '', operatorName: '', operatorAddress: '', organizationNumber: '' };
 
 export default function ApiariesPage() {
   const queryClient = useQueryClient();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingApiaryId, setEditingApiaryId] = useState<string | null>(null);
-  const [newApiary, setNewApiary] = useState({ name: '', description: '', locationName: '', lat: '', lng: '' });
+  const [newApiary, setNewApiary] = useState(emptyApiary);
   const [geoLoading, setGeoLoading] = useState(false);
   const { data: response, isLoading } = useQuery({
     queryKey: ['apiaries'],
@@ -32,12 +34,12 @@ export default function ApiariesPage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: { name: string; description?: string; location?: { name?: string; lat?: number; lng?: number } }) =>
+    mutationFn: (data: { name: string; description?: string; location?: { name?: string; lat?: number; lng?: number }; type?: string; registrationNumber?: string; operatorName?: string; operatorAddress?: string; organizationNumber?: string }) =>
       apiariesApi.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['apiaries'] });
       setShowCreateModal(false);
-      setNewApiary({ name: '', description: '', locationName: '', lat: '', lng: '' });
+      setNewApiary(emptyApiary);
       toast.success('Bigård opprettet!');
     },
     onError: (err: unknown) => {
@@ -53,6 +55,11 @@ export default function ApiariesPage() {
         name: string;
         description?: string | null;
         location?: { name?: string | null; lat?: number | null; lng?: number | null };
+        type?: string;
+        registrationNumber?: string | null;
+        operatorName?: string | null;
+        operatorAddress?: string | null;
+        organizationNumber?: string | null;
       };
     }) => apiariesApi.update(data.id, data.values),
     onSuccess: () => {
@@ -62,7 +69,7 @@ export default function ApiariesPage() {
       }
       setShowCreateModal(false);
       setEditingApiaryId(null);
-      setNewApiary({ name: '', description: '', locationName: '', lat: '', lng: '' });
+      setNewApiary(emptyApiary);
       toast.success('Bigård oppdatert!');
     },
     onError: (err: unknown) => {
@@ -74,7 +81,7 @@ export default function ApiariesPage() {
   const closeModal = () => {
     setShowCreateModal(false);
     setEditingApiaryId(null);
-    setNewApiary({ name: '', description: '', locationName: '', lat: '', lng: '' });
+    setNewApiary(emptyApiary);
   };
 
   const openEditModal = (apiary: ApiaryListItem) => {
@@ -85,6 +92,8 @@ export default function ApiariesPage() {
       locationName: apiary.location?.name || '',
       lat: apiary.location?.lat?.toString() || '',
       lng: apiary.location?.lng?.toString() || '',
+      type: apiary.type || 'permanent', registrationNumber: apiary.registrationNumber || '', operatorName: apiary.operatorName || '',
+      operatorAddress: apiary.operatorAddress || '', organizationNumber: apiary.organizationNumber || '',
     });
     setShowCreateModal(true);
   };
@@ -133,6 +142,8 @@ export default function ApiariesPage() {
             lat: newApiary.lat ? parseFloat(newApiary.lat) : null,
             lng: newApiary.lng ? parseFloat(newApiary.lng) : null,
           },
+          type: newApiary.type, registrationNumber: newApiary.registrationNumber || null, operatorName: newApiary.operatorName || null,
+          operatorAddress: newApiary.operatorAddress || null, organizationNumber: newApiary.organizationNumber || null,
         },
       });
       return;
@@ -142,6 +153,8 @@ export default function ApiariesPage() {
       name: newApiary.name,
       description: newApiary.description || undefined,
       location: hasLocation ? location : undefined,
+      type: newApiary.type, registrationNumber: newApiary.registrationNumber || undefined, operatorName: newApiary.operatorName || undefined,
+      operatorAddress: newApiary.operatorAddress || undefined, organizationNumber: newApiary.organizationNumber || undefined,
     });
   };
 
@@ -271,6 +284,11 @@ export default function ApiariesPage() {
                   onChange={(e) => setNewApiary({ ...newApiary, locationName: e.target.value })}
                   placeholder="f.eks. Sandsli, Bergen"
                 />
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Type bigård</label><select className="w-full px-3 py-2 border rounded-lg" value={newApiary.type} onChange={e=>setNewApiary({...newApiary,type:e.target.value})}><option value="permanent">Permanent</option><option value="seasonal">Sesong</option><option value="heather_route">Lyngtrekk</option></select></div>
+                <Input label="Registreringsnummer" value={newApiary.registrationNumber} onChange={e=>setNewApiary({...newApiary,registrationNumber:e.target.value})} />
+                <Input label="Driftsansvarlig" value={newApiary.operatorName} onChange={e=>setNewApiary({...newApiary,operatorName:e.target.value})} />
+                <Input label="Adresse driftsansvarlig" value={newApiary.operatorAddress} onChange={e=>setNewApiary({...newApiary,operatorAddress:e.target.value})} />
+                <Input label="Organisasjonsnummer" value={newApiary.organizationNumber} onChange={e=>setNewApiary({...newApiary,organizationNumber:e.target.value})} />
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="block text-sm font-medium text-gray-700">
