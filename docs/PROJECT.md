@@ -3,8 +3,9 @@
 ## Systemoversikt
 
 Komplett system for birøktere til å administrere bigårder, kuber, inspeksjoner,
-behandlinger, fôring, høsting og dronningavl. Norskspråklig med offline-støtte
-på mobil og full dataeksport (CSV, PDF).
+behandlinger, fôring, høsting og dronningavl. Løsningen har en sporbar myndighetsjournal
+for flytting, legemidler, helse/kontroll og honningpartier, med offline-støtte på mobil
+og integritetskontrollert eksport (CSV, PDF og ZIP).
 
 ## Stack
 
@@ -41,6 +42,11 @@ Lars (mobil)                    Lars (nettleser)
 |    /hives         Kuber                                   |
 |    /inspections   Inspeksjoner (inkl. batch)              |
 |    /treatments    Behandlinger (varroa, sykdom)           |
+|    /placements    Historisk plassering og flytting        |
+|    /medicine-acquisitions  Legemiddelanskaffelser         |
+|    /compliance-events      Helse, biosikkerhet, kontroll  |
+|    /production-batches     Sporbare honningpartier        |
+|    /documents     Autoriserte journalvedlegg              |
 |    /feedings      Fôring                                  |
 |    /production    Høsting og økonomi                      |
 |    /queens        Dronningavl og stamtavle                |
@@ -63,6 +69,10 @@ Mobilappen har full offline-støtte:
 2. Sync-kø for ventende operasjoner
 3. Automatisk synkronisering når nett er tilgjengelig
 4. Nettverksstatus-indikator i UI
+5. Versjonerte SQLite-migreringer via `PRAGMA user_version`
+6. Idempotensnøkkel og eksplisitt feilstatus for journalmutasjoner
+
+Myndighetsjournalen støtter dokumentasjon, men erstatter ikke registrering av dyrehold/bigårdsplasser eller varsling til Mattilsynet. Brukeren må kontrollere at registreringene er korrekte og fullstendige.
 
 ## Kom i gang
 
@@ -177,7 +187,7 @@ Birøkt/
 
 | Variabel | Beskrivelse |
 |----------|-------------|
-| `EXPO_PUBLIC_API_URL` | `http://localhost:3000/api/v1` |
+| `EXPO_PUBLIC_API_URL` | `http://openclaw.tail586d8a.ts.net:3100/api/v1` (Tailscale MagicDNS) |
 
 ## Databasemodeller (Prisma)
 

@@ -16,6 +16,11 @@ import searchRoutes from './search.routes.js';
 import calendarRoutes from './calendar.routes.js';
 import journalRoutes from './journal.routes.js';
 import agentRoutes from './agent.routes.js';
+import placementRoutes from './placement.routes.js';
+import medicineAcquisitionRoutes from './medicineAcquisition.routes.js';
+import complianceRoutes from './compliance.routes.js';
+import productionBatchRoutes from './productionBatch.routes.js';
+import documentRoutes from './document.routes.js';
 
 const router = Router();
 
@@ -36,6 +41,11 @@ router.use('/search', searchRoutes);
 router.use('/calendar', calendarRoutes);
 router.use('/journal', journalRoutes);
 router.use('/agent', agentRoutes);
+router.use('/placements', placementRoutes);
+router.use('/medicine-acquisitions', medicineAcquisitionRoutes);
+router.use('/compliance-events', complianceRoutes);
+router.use('/production-batches', productionBatchRoutes);
+router.use('/documents', documentRoutes);
 
 export { router as v1Routes };
 export default router;

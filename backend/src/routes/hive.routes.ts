@@ -4,6 +4,7 @@ import { validateBody, validateQuery, validateParams } from '../middleware/valid
 import { authenticate } from '../middleware/auth.js';
 import { sendSuccess, sendError, ErrorCodes, calculatePagination } from '../utils/response.js';
 import prisma from '../utils/prisma.js';
+import { auditData } from '../services/complianceService.js';
 
 const router = Router();
 
@@ -205,8 +206,8 @@ router.post('/', validateBody(createHiveSchema), async (req: Request, res: Respo
     const year = new Date().getFullYear();
     const qrCode = `QR-${hiveNumber}-${year}`;
 
-    const hive = await prisma.hive.create({
-      data: {
+    const hive = await prisma.$transaction(async tx => {
+      const created = await tx.hive.create({ data: {
         apiaryId,
         hiveNumber,
         hiveType,
@@ -222,7 +223,11 @@ router.post('/', validateBody(createHiveSchema), async (req: Request, res: Respo
         apiary: {
           select: { id: true, name: true },
         },
-      },
+      }});
+      const apiary = await tx.apiary.findUniqueOrThrow({ where: { id: apiaryId } });
+      await tx.hivePlacement.create({ data: { hiveId: created.id, apiaryId, startedAt: created.createdAt, movementType: 'initial', apiaryName: apiary.name, locationName: apiary.locationName, locationLat: apiary.locationLat, locationLng: apiary.locationLng, createdById: userId } });
+      await tx.auditLog.create({ data: auditData({ userId, entityType: 'Hive', entityId: created.id, action: 'create', after: created, requestId: res.locals.requestId }) });
+      return created;
     });
 
     sendSuccess(res, {
@@ -525,9 +530,9 @@ router.delete('/:id', validateParams(idParamSchema), async (req: Request, res: R
     }
 
     // Soft delete by setting status to inactive
-    await prisma.hive.update({
-      where: { id },
-      data: { status: 'inactive' },
+    await prisma.$transaction(async tx => {
+      const updated = await tx.hive.update({ where: { id }, data: { status: 'inactive' } });
+      await tx.auditLog.create({ data: auditData({ userId, entityType: 'Hive', entityId: id, action: 'update', before: hive, after: updated, reason: 'Deactivated instead of hard deletion', requestId: res.locals.requestId }) });
     });
 
     res.status(204).send();

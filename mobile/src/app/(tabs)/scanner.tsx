@@ -49,7 +49,7 @@ export default function ScannerScreen() {
   if (!permission.granted) {
     return (
       <View style={styles.centered}>
-        <Ionicons name="camera-off-outline" size={64} color="#d1d5db" />
+        <Ionicons name="camera-outline" size={64} color="#d1d5db" />
         <Text style={styles.title}>Kameratilgang kreves</Text>
         <Text style={styles.text}>
           Birøkt trenger tilgang til kameraet for å skanne QR-koder på kubene

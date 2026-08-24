@@ -1,316 +1,145 @@
-import { Router, Request, Response } from 'express';
+import { randomUUID } from 'crypto';
+import { Router } from 'express';
 import { z } from 'zod';
-import { validateBody, validateQuery, validateParams } from '../middleware/validate.js';
 import { authenticate } from '../middleware/auth.js';
-import { sendSuccess, sendError, ErrorCodes, calculatePagination } from '../utils/response.js';
+import { validateBody, validateParams, validateQuery } from '../middleware/validate.js';
 import prisma from '../utils/prisma.js';
+import { calculatePagination, ErrorCodes, sendError, sendSuccess } from '../utils/response.js';
+import { addCalendarYears, auditData } from '../services/complianceService.js';
+import { hiveAccess } from '../services/accessService.js';
+import { executeIdempotent } from '../services/idempotencyService.js';
 
 const router = Router();
-
 router.use(authenticate);
 
-// Validation schemas
-const createTreatmentSchema = z.object({
-  hiveId: z.string().uuid(),
-  treatmentDate: z.string(),
-  productName: z.string().trim().min(1).max(255),
-  productType: z.enum(['organic_acid', 'essential_oil', 'synthetic', 'biological', 'chemical', 'other']).optional(),
-  target: z.enum(['varroa', 'nosema', 'foulbrood', 'wax_moth', 'other']).optional(),
-  dosage: z.string().trim().max(255).optional(),
-  startDate: z.string(),
-  endDate: z.string().optional(),
-  withholdingPeriodDays: z.number().int().min(0).optional(),
-  notes: z.string().trim().optional(),
+const baseSchema = z.object({
+  hiveId: z.string().uuid(), startDate: z.string().datetime({ offset: true }),
+  endDate: z.string().datetime({ offset: true }).optional(), ongoing: z.boolean().default(false),
+  productName: z.string().trim().min(1).max(255), productType: z.string().trim().max(100).optional(),
+  target: z.string().trim().max(100).optional(), scope: z.enum(['whole_hive', 'colony']).default('whole_hive'),
+  colonyNumber: z.number().int().min(1).max(2).optional(), dosage: z.string().trim().max(1000).optional(),
+  administeredAmount: z.number().positive().finite(), administeredUnit: z.string().trim().min(1).max(50),
+  medicineAcquisitionId: z.string().uuid().optional(), supplierName: z.string().trim().min(1).max(255),
+  supplierAddress: z.string().trim().max(1000).optional(), acquisitionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  veterinarianName: z.string().trim().max(255).optional(), veterinarianContact: z.string().trim().max(255).optional(),
+  prescriptionReference: z.string().trim().max(255).optional(), productBatchNumber: z.string().trim().max(255).optional(),
+  withholdingPeriodDays: z.number().int().min(0), notes: z.string().trim().max(5000).optional(),
+}).superRefine((data, ctx) => {
+  if (!data.ongoing && !data.endDate) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['endDate'], message: 'End date is required unless treatment is ongoing' });
+  if (data.endDate && new Date(data.endDate) < new Date(data.startDate)) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['endDate'], message: 'End date cannot precede start date' });
+  if (data.scope === 'colony' && data.colonyNumber === undefined) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['colonyNumber'], message: 'Colony number is required for colony scope' });
 });
-
-const updateTreatmentSchema = z.object({
-  productName: z.string().trim().min(1).max(255).optional(),
-  productType: z.enum(['organic_acid', 'essential_oil', 'synthetic', 'biological', 'chemical', 'other']).optional(),
-  target: z.enum(['varroa', 'nosema', 'foulbrood', 'wax_moth', 'other']).optional(),
-  dosage: z.string().trim().max(255).optional(),
-  endDate: z.string().optional(),
-  notes: z.string().trim().optional(),
+const batchSchema = z.object({ treatments: z.array(baseSchema).min(1).max(100) });
+const updateSchema = z.object({
+  baseVersion: z.number().int().positive(), reason: z.string().trim().min(1).max(1000),
+  endDate: z.string().datetime({ offset: true }).nullable().optional(), ongoing: z.boolean().optional(),
+  productName: z.string().trim().min(1).max(255).optional(), dosage: z.string().trim().max(1000).optional(),
+  administeredAmount: z.number().positive().finite().optional(), administeredUnit: z.string().trim().min(1).max(50).optional(),
+  withholdingPeriodDays: z.number().int().min(0).optional(), notes: z.string().trim().max(5000).nullable().optional(),
 });
-
-const listTreatmentsSchema = z.object({
-  hiveId: z.string().uuid().optional(),
-  activeOnly: z.string().transform(v => v === 'true').optional(),
-  startDate: z.string().datetime().optional(),
-  endDate: z.string().datetime().optional(),
-  page: z.string().transform(Number).pipe(z.number().int().min(1)).default('1'),
+const voidSchema = z.object({ reason: z.string().trim().min(1).max(1000) });
+const idSchema = z.object({ id: z.string().uuid() });
+const listSchema = z.object({
+  hiveId: z.string().uuid().optional(), from: z.string().datetime({ offset: true }).optional(), to: z.string().datetime({ offset: true }).optional(),
+  includeVoided: z.string().transform(v => v === 'true').optional(), page: z.string().transform(Number).pipe(z.number().int().min(1)).default('1'),
   perPage: z.string().transform(Number).pipe(z.number().int().min(1).max(100)).default('20'),
 });
 
-const idParamSchema = z.object({
-  id: z.string().uuid(),
-});
+function withholdingEnd(start: Date, days: number) { const result = new Date(start); result.setUTCDate(result.getUTCDate() + days); return result; }
+type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
 
-// Helper to check hive access
-async function checkHiveAccess(userId: string, hiveId: string): Promise<boolean> {
-  const hive = await prisma.hive.findUnique({
-    where: { id: hiveId },
-    select: { apiaryId: true },
-  });
-  if (!hive) return false;
-
-  const userApiary = await prisma.userApiary.findUnique({
-    where: { userId_apiaryId: { userId, apiaryId: hive.apiaryId } },
-  });
-  return !!userApiary;
+async function createOne(tx: Tx, userId: string, body: z.infer<typeof baseSchema>, groupId: string | null, requestId?: string) {
+  const access = await hiveAccess(userId, body.hiveId, tx);
+  if (!access || access.access.role === 'viewer') throw Object.assign(new Error('No edit access to hive'), { status: 403, code: ErrorCodes.FORBIDDEN });
+  if (body.scope === 'colony' && access.hive.hiveType === 'single_queen' && body.colonyNumber !== 1) {
+    throw Object.assign(new Error('Single-queen hives only allow colony 1'), { status: 422, code: ErrorCodes.VALIDATION_ERROR });
+  }
+  if (body.medicineAcquisitionId && !await tx.medicineAcquisition.findFirst({ where: { id: body.medicineAcquisitionId, userId, voidedAt: null } })) {
+    throw Object.assign(new Error('Medicine acquisition not found'), { status: 422, code: ErrorCodes.VALIDATION_ERROR });
+  }
+  const start = new Date(body.startDate); const end = body.endDate ? new Date(body.endDate) : null;
+  const treatment = await tx.treatment.create({ data: {
+    hiveId: body.hiveId, userId, treatmentDate: start, startDate: start, endDate: end, ongoing: body.ongoing,
+    productName: body.productName, productType: body.productType, target: body.target, scope: body.scope,
+    colonyNumber: body.scope === 'colony' ? body.colonyNumber : null, dosage: body.dosage,
+    administeredAmount: body.administeredAmount, administeredUnit: body.administeredUnit,
+    medicineAcquisitionId: body.medicineAcquisitionId, treatmentGroupId: groupId, supplierName: body.supplierName,
+    supplierAddress: body.supplierAddress, acquisitionDate: new Date(`${body.acquisitionDate}T00:00:00.000Z`),
+    veterinarianName: body.veterinarianName, veterinarianContact: body.veterinarianContact,
+    prescriptionReference: body.prescriptionReference, productBatchNumber: body.productBatchNumber,
+    withholdingPeriodDays: body.withholdingPeriodDays, withholdingEndDate: withholdingEnd(start, body.withholdingPeriodDays),
+    retentionUntil: addCalendarYears(end ?? start), notes: body.notes, hiveNumberSnapshot: access.hive.hiveNumber,
+    apiaryIdAtTreatment: access.hive.apiaryId, apiaryNameSnapshot: access.hive.apiary.name,
+  }});
+  await tx.auditLog.create({ data: auditData({ userId, entityType: 'Treatment', entityId: treatment.id, action: 'create', after: treatment, requestId }) });
+  return treatment;
 }
 
-// GET /treatments - List treatments
-router.get('/', validateQuery(listTreatmentsSchema), async (req: Request, res: Response) => {
-  try {
-    const userId = req.user!.id;
-    const { hiveId, activeOnly, startDate, endDate, page, perPage } = req.query as unknown as {
-      hiveId?: string;
-      activeOnly?: boolean;
-      startDate?: string;
-      endDate?: string;
-      page: number;
-      perPage: number;
-    };
-
-    // Get user's hives
-    const userApiaries = await prisma.userApiary.findMany({
-      where: { userId },
-      select: { apiaryId: true },
-    });
-    const apiaryIds = userApiaries.map(ua => ua.apiaryId);
-
-    const userHives = await prisma.hive.findMany({
-      where: { apiaryId: { in: apiaryIds } },
-      select: { id: true },
-    });
-    const hiveIds = userHives.map(h => h.id);
-
-    if (hiveId && !hiveIds.includes(hiveId)) {
-      sendError(res, ErrorCodes.FORBIDDEN, 'You do not have access to this hive', 403);
-      return;
-    }
-
-    const now = new Date();
-    const where = {
-      hiveId: hiveId ? hiveId : { in: hiveIds },
-      ...(startDate && { treatmentDate: { gte: new Date(startDate) } }),
-      ...(endDate && { treatmentDate: { lte: new Date(endDate) } }),
-      ...(activeOnly && { withholdingEndDate: { gte: now } }),
-    };
-
-    const total = await prisma.treatment.count({ where });
-
-    const treatments = await prisma.treatment.findMany({
-      where,
-      include: {
-        hive: {
-          select: {
-            id: true,
-            hiveNumber: true,
-            apiary: { select: { name: true } },
-          },
-        },
-      },
-      orderBy: { treatmentDate: 'desc' },
-      skip: (page - 1) * perPage,
-      take: perPage,
-    });
-
-    const result = treatments.map(t => ({
-      id: t.id,
-      hive: {
-        id: t.hive.id,
-        hiveNumber: t.hive.hiveNumber,
-        apiaryName: t.hive.apiary.name,
-      },
-      treatmentDate: t.treatmentDate,
-      productName: t.productName,
-      productType: t.productType,
-      target: t.target,
-      dosage: t.dosage,
-      startDate: t.startDate,
-      endDate: t.endDate,
-      withholdingPeriodDays: t.withholdingPeriodDays,
-      withholdingEndDate: t.withholdingEndDate,
-      isActive: t.withholdingEndDate ? t.withholdingEndDate >= now : false,
-      notes: t.notes,
-      createdAt: t.createdAt,
-    }));
-
-    sendSuccess(res, result, 200, calculatePagination(page, perPage, total));
-  } catch (error) {
-    console.error('List treatments error:', error);
-    sendError(res, ErrorCodes.INTERNAL_ERROR, 'Failed to list treatments', 500);
-  }
+router.get('/', validateQuery(listSchema), async (req, res) => {
+  const { hiveId, from, to, includeVoided, page, perPage } = req.query as any; const userId = req.user!.id;
+  const apiaryIds = (await prisma.userApiary.findMany({ where: { userId }, select: { apiaryId: true } })).map(x => x.apiaryId);
+  const where: any = { hive: { apiaryId: { in: apiaryIds } }, ...(hiveId && { hiveId }), ...(!includeVoided && { voidedAt: null }),
+    ...(from && { startDate: { gte: new Date(from) } }), ...(to && { startDate: { lt: new Date(to) } }) };
+  const [total, rows] = await Promise.all([prisma.treatment.count({ where }), prisma.treatment.findMany({ where,
+    include: { hive: { select: { id: true, hiveNumber: true, apiary: { select: { name: true } } } }, medicineAcquisition: true },
+    orderBy: { startDate: 'desc' }, skip: (page - 1) * perPage, take: perPage })]);
+  sendSuccess(res, rows.map(row => ({ ...row, isActive: row.ongoing || (!!row.withholdingEndDate && row.withholdingEndDate >= new Date()) })), 200, calculatePagination(page, perPage, total));
 });
 
-// POST /treatments - Create treatment
-router.post('/', validateBody(createTreatmentSchema), async (req: Request, res: Response) => {
+router.post('/', validateBody(baseSchema), async (req, res) => {
+  try { const row = await executeIdempotent(req,res,201,()=>prisma.$transaction(tx => createOne(tx, req.user!.id, req.body, null, res.locals.requestId))); if(row)sendSuccess(res, row, 201); }
+  catch (e) { const x = e as any; sendError(res, x.code ?? ErrorCodes.INTERNAL_ERROR, x.message ?? 'Failed to create treatment', x.status ?? 500); }
+});
+router.post('/batch', validateBody(batchSchema), async (req, res) => {
   try {
-    const userId = req.user!.id;
-    const { hiveId, treatmentDate, productName, productType, target, dosage, startDate, endDate, withholdingPeriodDays, notes } = req.body;
-
-    const hasAccess = await checkHiveAccess(userId, hiveId);
-    if (!hasAccess) {
-      sendError(res, ErrorCodes.FORBIDDEN, 'You do not have access to this hive', 403);
-      return;
-    }
-
-    // Calculate withholding end date
-    let withholdingEndDate: Date | null = null;
-    if (withholdingPeriodDays && withholdingPeriodDays > 0) {
-      withholdingEndDate = new Date(startDate);
-      withholdingEndDate.setDate(withholdingEndDate.getDate() + withholdingPeriodDays);
-    }
-
-    const treatment = await prisma.treatment.create({
-      data: {
-        hiveId,
-        userId,
-        treatmentDate: new Date(treatmentDate),
-        productName,
-        productType,
-        target,
-        dosage,
-        startDate: new Date(startDate),
-        endDate: endDate ? new Date(endDate) : null,
-        withholdingPeriodDays,
-        withholdingEndDate,
-        notes,
-      },
-    });
-
-    sendSuccess(res, {
-      id: treatment.id,
-      treatmentDate: treatment.treatmentDate,
-      productName: treatment.productName,
-      withholdingEndDate: treatment.withholdingEndDate,
-      createdAt: treatment.createdAt,
-    }, 201);
-  } catch (error) {
-    console.error('Create treatment error:', error);
-    sendError(res, ErrorCodes.INTERNAL_ERROR, 'Failed to create treatment', 500);
-  }
+    const groupId = randomUUID();
+    const result = await executeIdempotent(req,res,201,async()=>{const rows = await prisma.$transaction(async tx => { const out = []; for (const item of req.body.treatments) out.push(await createOne(tx, req.user!.id, item, groupId, res.locals.requestId)); return out; });return { treatmentGroupId: groupId, treatments: rows };});
+    if(result)sendSuccess(res,result,201);
+  } catch (e) { const x = e as any; sendError(res, x.code ?? ErrorCodes.INTERNAL_ERROR, x.message ?? 'Failed to create treatments', x.status ?? 500); }
 });
 
-// GET /treatments/:id - Get single treatment
-router.get('/:id', validateParams(idParamSchema), async (req: Request, res: Response) => {
-  try {
-    const userId = req.user!.id;
-    const { id } = req.params;
-
-    const treatment = await prisma.treatment.findUnique({
-      where: { id },
-      include: {
-        hive: {
-          select: {
-            id: true,
-            hiveNumber: true,
-            apiaryId: true,
-            apiary: { select: { name: true } },
-          },
-        },
-      },
-    });
-
-    if (!treatment) {
-      sendError(res, ErrorCodes.NOT_FOUND, 'Treatment not found', 404);
-      return;
-    }
-
-    const hasAccess = await checkHiveAccess(userId, treatment.hiveId);
-    if (!hasAccess) {
-      sendError(res, ErrorCodes.FORBIDDEN, 'You do not have access to this treatment', 403);
-      return;
-    }
-
-    sendSuccess(res, {
-      id: treatment.id,
-      hive: {
-        id: treatment.hive.id,
-        hiveNumber: treatment.hive.hiveNumber,
-        apiaryName: treatment.hive.apiary.name,
-      },
-      treatmentDate: treatment.treatmentDate,
-      productName: treatment.productName,
-      productType: treatment.productType,
-      target: treatment.target,
-      dosage: treatment.dosage,
-      startDate: treatment.startDate,
-      endDate: treatment.endDate,
-      withholdingPeriodDays: treatment.withholdingPeriodDays,
-      withholdingEndDate: treatment.withholdingEndDate,
-      notes: treatment.notes,
-      createdAt: treatment.createdAt,
-    });
-  } catch (error) {
-    console.error('Get treatment error:', error);
-    sendError(res, ErrorCodes.INTERNAL_ERROR, 'Failed to get treatment', 500);
-  }
+router.get('/:id', validateParams(idSchema), async (req, res) => {
+  const row = await prisma.treatment.findUnique({ where: { id: req.params.id }, include: { hive: { include: { apiary: true } }, medicineAcquisition: true } });
+  if (!row) { sendError(res, ErrorCodes.NOT_FOUND, 'Treatment not found', 404); return; }
+  if (!await hiveAccess(req.user!.id, row.hiveId)) { sendError(res, ErrorCodes.FORBIDDEN, 'No access to treatment', 403); return; }
+  const audit = await prisma.auditLog.findMany({ where: { entityType: 'Treatment', entityId: row.id }, orderBy: { occurredAt: 'asc' } });
+  sendSuccess(res, { ...row, audit });
 });
 
-// PUT /treatments/:id - Update treatment
-router.put('/:id', validateParams(idParamSchema), validateBody(updateTreatmentSchema), async (req: Request, res: Response) => {
+router.put('/:id', validateParams(idSchema), validateBody(updateSchema), async (req, res) => {
   try {
-    const userId = req.user!.id;
-    const { id } = req.params;
-    const { productName, productType, target, dosage, endDate, notes } = req.body;
-
-    const existing = await prisma.treatment.findUnique({ where: { id } });
-    if (!existing) {
-      sendError(res, ErrorCodes.NOT_FOUND, 'Treatment not found', 404);
-      return;
-    }
-
-    const hasAccess = await checkHiveAccess(userId, existing.hiveId);
-    if (!hasAccess) {
-      sendError(res, ErrorCodes.FORBIDDEN, 'You do not have access to this treatment', 403);
-      return;
-    }
-
-    const treatment = await prisma.treatment.update({
-      where: { id },
-      data: {
-        ...(productName && { productName }),
-        ...(productType !== undefined && { productType }),
-        ...(target !== undefined && { target }),
-        ...(dosage !== undefined && { dosage }),
-        ...(endDate !== undefined && { endDate: endDate ? new Date(endDate) : null }),
-        ...(notes !== undefined && { notes }),
-      },
-    });
-
-    sendSuccess(res, { id: treatment.id, updatedAt: treatment.updatedAt });
-  } catch (error) {
-    console.error('Update treatment error:', error);
-    sendError(res, ErrorCodes.INTERNAL_ERROR, 'Failed to update treatment', 500);
-  }
+    const userId = req.user!.id; const row = await prisma.$transaction(async tx => {
+      const before = await tx.treatment.findUnique({ where: { id: req.params.id } });
+      if (!before) throw Object.assign(new Error('Treatment not found'), { status: 404, code: ErrorCodes.NOT_FOUND });
+      if (!await hiveAccess(userId, before.hiveId, tx)) throw Object.assign(new Error('No access'), { status: 403, code: ErrorCodes.FORBIDDEN });
+      if (before.version !== req.body.baseVersion) throw Object.assign(new Error(`Version conflict: server=${before.version}, client=${req.body.baseVersion}`), { status: 409, code: ErrorCodes.VERSION_CONFLICT });
+      const newEnd = req.body.endDate === undefined ? before.endDate : req.body.endDate ? new Date(req.body.endDate) : null;
+      const candidate = addCalendarYears(newEnd ?? before.startDate);
+      const retentionUntil = before.retentionUntil && before.retentionUntil > candidate ? before.retentionUntil : candidate;
+      const updated = await tx.treatment.update({ where: { id: before.id }, data: {
+        productName: req.body.productName, dosage: req.body.dosage, administeredAmount: req.body.administeredAmount,
+        administeredUnit: req.body.administeredUnit, withholdingPeriodDays: req.body.withholdingPeriodDays,
+        withholdingEndDate: req.body.withholdingPeriodDays === undefined ? undefined : withholdingEnd(before.startDate, req.body.withholdingPeriodDays),
+        notes: req.body.notes, endDate: newEnd, ongoing: req.body.ongoing, retentionUntil, version: { increment: 1 },
+      }});
+      await tx.auditLog.create({ data: auditData({ userId, entityType: 'Treatment', entityId: before.id, action: 'update', before, after: updated, reason: req.body.reason, requestId: res.locals.requestId }) });
+      return updated;
+    }); sendSuccess(res, row);
+  } catch (e) { const x = e as any; sendError(res, x.code ?? ErrorCodes.INTERNAL_ERROR, x.message ?? 'Update failed', x.status ?? 500); }
 });
 
-// DELETE /treatments/:id
-router.delete('/:id', validateParams(idParamSchema), async (req: Request, res: Response) => {
+router.post('/:id/void', validateParams(idSchema), validateBody(voidSchema), async (req, res) => {
   try {
-    const userId = req.user!.id;
-    const { id } = req.params;
-
-    const treatment = await prisma.treatment.findUnique({ where: { id } });
-    if (!treatment) {
-      sendError(res, ErrorCodes.NOT_FOUND, 'Treatment not found', 404);
-      return;
-    }
-
-    const hasAccess = await checkHiveAccess(userId, treatment.hiveId);
-    if (!hasAccess) {
-      sendError(res, ErrorCodes.FORBIDDEN, 'You do not have access to this treatment', 403);
-      return;
-    }
-
-    await prisma.treatment.delete({ where: { id } });
-    res.status(204).send();
-  } catch (error) {
-    console.error('Delete treatment error:', error);
-    sendError(res, ErrorCodes.INTERNAL_ERROR, 'Failed to delete treatment', 500);
-  }
+    const userId = req.user!.id; const row = await prisma.$transaction(async tx => {
+      const before = await tx.treatment.findUnique({ where: { id: req.params.id } });
+      if (!before) throw Object.assign(new Error('Treatment not found'), { status: 404, code: ErrorCodes.NOT_FOUND });
+      if (!await hiveAccess(userId, before.hiveId, tx)) throw Object.assign(new Error('No access'), { status: 403, code: ErrorCodes.FORBIDDEN });
+      const updated = await tx.treatment.update({ where: { id: before.id }, data: { voidedAt: new Date(), voidReason: req.body.reason, voidedById: userId, version: { increment: 1 } } });
+      await tx.auditLog.create({ data: auditData({ userId, entityType: 'Treatment', entityId: before.id, action: 'void', before, after: updated, reason: req.body.reason, requestId: res.locals.requestId }) });
+      return updated;
+    }); sendSuccess(res, row);
+  } catch (e) { const x = e as any; sendError(res, x.code ?? ErrorCodes.INTERNAL_ERROR, x.message ?? 'Void failed', x.status ?? 500); }
 });
+router.delete('/:id', validateParams(idSchema), (_req, res) => sendError(res, ErrorCodes.RECORD_RETENTION_PROTECTED, 'Behandlingsjournalen kan ikke slettes. Bruk annullering med begrunnelse.', 409));
 
 export default router;

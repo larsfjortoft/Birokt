@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { treatmentsApi, hivesApi } from '@/lib/api';
+import { treatmentsApi, hivesApi, documentsApi } from '@/lib/api';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -74,7 +74,7 @@ export default function TreatmentsPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => treatmentsApi.delete(id),
+    mutationFn: (id: string) => treatmentsApi.void(id, 'Annullert av bruker i webgrensesnittet'),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['treatments'] });
     },
@@ -280,6 +280,7 @@ function CreateTreatmentModal({
   hives: Hive[];
 }) {
   const queryClient = useQueryClient();
+  const [attachment, setAttachment] = useState<File | null>(null);
   const [formData, setFormData] = useState({
     hiveId: '',
     productName: '',
@@ -288,6 +289,18 @@ function CreateTreatmentModal({
     dosage: '',
     startDate: new Date().toISOString().slice(0, 10),
     endDate: '',
+    ongoing: true,
+    scope: 'whole_hive' as 'whole_hive' | 'colony',
+    colonyNumber: '',
+    administeredAmount: '',
+    administeredUnit: 'ml',
+    supplierName: '',
+    supplierAddress: '',
+    acquisitionDate: new Date().toISOString().slice(0, 10),
+    productBatchNumber: '',
+    veterinarianName: '',
+    veterinarianContact: '',
+    prescriptionReference: '',
     withholdingPeriodDays: 0,
     notes: '',
   });
@@ -295,9 +308,15 @@ function CreateTreatmentModal({
   const createMutation = useMutation({
     mutationFn: (data: Parameters<typeof treatmentsApi.create>[0]) =>
       treatmentsApi.create(data),
-    onSuccess: () => {
+    onSuccess: async (response) => {
+      if (attachment && response.data?.id) {
+        const form = new FormData(); form.append('file', attachment); form.append('entityType','treatment');
+        form.append('entityId',response.data.id); form.append('documentType','receipt');
+        await documentsApi.upload(form);
+      }
       queryClient.invalidateQueries({ queryKey: ['treatments'] });
       onClose();
+      setAttachment(null);
       setFormData({
         hiveId: '',
         productName: '',
@@ -306,6 +325,9 @@ function CreateTreatmentModal({
         dosage: '',
         startDate: new Date().toISOString().slice(0, 10),
         endDate: '',
+        ongoing: true, scope: 'whole_hive', colonyNumber: '', administeredAmount: '', administeredUnit: 'ml',
+        supplierName: '', supplierAddress: '', acquisitionDate: new Date().toISOString().slice(0,10),
+        productBatchNumber: '', veterinarianName: '', veterinarianContact: '', prescriptionReference: '',
         withholdingPeriodDays: 0,
         notes: '',
       });
@@ -324,18 +346,29 @@ function CreateTreatmentModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.hiveId || !formData.productName || !formData.startDate) return;
+    if (!formData.hiveId || !formData.productName || !formData.startDate || !formData.administeredAmount || !formData.administeredUnit || !formData.supplierName) return;
 
     createMutation.mutate({
       hiveId: formData.hiveId,
-      treatmentDate: new Date(formData.startDate).toISOString(),
       productName: formData.productName,
       productType: formData.productType,
       target: formData.target,
       dosage: formData.dosage || undefined,
       startDate: new Date(formData.startDate).toISOString(),
       endDate: formData.endDate ? new Date(formData.endDate).toISOString() : undefined,
-      withholdingPeriodDays: formData.withholdingPeriodDays || undefined,
+      ongoing: formData.ongoing,
+      scope: formData.scope,
+      colonyNumber: formData.scope === 'colony' ? Number(formData.colonyNumber) : undefined,
+      administeredAmount: Number(formData.administeredAmount),
+      administeredUnit: formData.administeredUnit,
+      supplierName: formData.supplierName,
+      supplierAddress: formData.supplierAddress || undefined,
+      acquisitionDate: formData.acquisitionDate,
+      productBatchNumber: formData.productBatchNumber || undefined,
+      veterinarianName: formData.veterinarianName || undefined,
+      veterinarianContact: formData.veterinarianContact || undefined,
+      prescriptionReference: formData.prescriptionReference || undefined,
+      withholdingPeriodDays: formData.withholdingPeriodDays,
       notes: formData.notes || undefined,
     });
   };
@@ -463,6 +496,22 @@ function CreateTreatmentModal({
         </div>
 
         {/* Withholding period */}
+        <div className="grid md:grid-cols-2 gap-4">
+          <Input label="Faktisk mengde *" type="number" min="0.0001" step="any" value={formData.administeredAmount} onChange={e=>setFormData(p=>({...p,administeredAmount:e.target.value}))} required />
+          <Input label="Enhet *" value={formData.administeredUnit} onChange={e=>setFormData(p=>({...p,administeredUnit:e.target.value}))} required />
+          <Input label="Leverandør *" value={formData.supplierName} onChange={e=>setFormData(p=>({...p,supplierName:e.target.value}))} required />
+          <Input label="Leverandøradresse" value={formData.supplierAddress} onChange={e=>setFormData(p=>({...p,supplierAddress:e.target.value}))} />
+          <Input label="Anskaffelsesdato *" type="date" value={formData.acquisitionDate} onChange={e=>setFormData(p=>({...p,acquisitionDate:e.target.value}))} required />
+          <Input label="Batch-/lotnummer" value={formData.productBatchNumber} onChange={e=>setFormData(p=>({...p,productBatchNumber:e.target.value}))} />
+          <Input label="Veterinær" value={formData.veterinarianName} onChange={e=>setFormData(p=>({...p,veterinarianName:e.target.value}))} />
+          <Input label="Veterinærkontakt" value={formData.veterinarianContact} onChange={e=>setFormData(p=>({...p,veterinarianContact:e.target.value}))} />
+          <Input label="Reseptreferanse" value={formData.prescriptionReference} onChange={e=>setFormData(p=>({...p,prescriptionReference:e.target.value}))} />
+          <div><label className="block text-sm font-medium mb-2">Omfang</label><select className="w-full border rounded-lg p-2" value={formData.scope} onChange={e=>setFormData(p=>({...p,scope:e.target.value as 'whole_hive'|'colony'}))}><option value="whole_hive">Hele kuben</option><option value="colony">Bestemt bifolk</option></select></div>
+          {formData.scope==='colony'&&<Input label="Bifolk (1 eller 2) *" type="number" min="1" max="2" value={formData.colonyNumber} onChange={e=>setFormData(p=>({...p,colonyNumber:e.target.value}))} required />}
+        </div>
+        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={formData.ongoing} onChange={e=>setFormData(p=>({...p,ongoing:e.target.checked}))}/> Behandlingen pågår</label>
+
+        {/* Withholding period */}
         <Input
           label="Tilbakeholdelsestid (dager)"
           type="number"
@@ -484,6 +533,8 @@ function CreateTreatmentModal({
             placeholder="Tilleggsinformasjon..."
           />
         </div>
+
+        <div><label className="block text-sm font-medium text-gray-700 mb-2">Kvittering, faktura eller resept</label><input type="file" accept=".pdf,image/jpeg,image/png,image/webp" onChange={e=>setAttachment(e.target.files?.[0]||null)} className="w-full text-sm border rounded-lg p-2"/><p className="text-xs text-gray-500 mt-1">Filen hashes på serveren og beholdes som beskyttet journalvedlegg.</p></div>
 
         {/* Actions */}
         <div className="flex justify-end gap-3 pt-4 border-t">

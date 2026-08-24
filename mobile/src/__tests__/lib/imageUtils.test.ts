@@ -1,7 +1,7 @@
 import { getFilename, isFileSizeValid, compressImage } from '../../lib/imageUtils';
 import { File } from 'expo-file-system/next';
 
-const MockFile = File as jest.Mock;
+  const MockFile = File as unknown as jest.Mock;
 
 beforeEach(() => {
   jest.clearAllMocks();

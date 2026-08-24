@@ -24,6 +24,8 @@ const csvExports: Array<{ type: CsvType; label: string; description: string }> =
 export default function ReportsPage() {
   const [selectedYear, setSelectedYear] = useState(currentYear);
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [from, setFrom] = useState(`${currentYear}-01-01`);
+  const [to, setTo] = useState(`${currentYear}-12-31`);
 
   const { data: apiariesResponse } = useQuery({
     queryKey: ['apiaries'],
@@ -71,6 +73,16 @@ export default function ReportsPage() {
     }
   }
 
+  async function handleCompliance(format: 'pdf' | 'zip') {
+    setDownloading(`compliance-${format}`);
+    try {
+      const response = await reportsApi.downloadCompliance(from, to, format);
+      if (!response.ok) throw new Error('Download failed');
+      const blob = await response.blob(); const url = URL.createObjectURL(blob); const a = document.createElement('a');
+      a.href = url; a.download = `myndighetsjournal-${from}-${to}.${format}`; a.click(); URL.revokeObjectURL(url);
+    } catch { toast.error('Kunne ikke generere myndighetsjournal'); } finally { setDownloading(null); }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -90,6 +102,7 @@ export default function ReportsPage() {
       </div>
 
       {/* PDF Reports */}
+      <Card><CardHeader><CardTitle>Myndighetsjournal</CardTitle></CardHeader><CardContent className="space-y-4"><p className="text-sm text-gray-600">Samlet rapport over registrerte opplysninger. Kontroller at journalen er fullstendig før den brukes som dokumentasjon.</p><div className="grid sm:grid-cols-2 gap-3"><label className="text-sm">Fra dato<input className="block w-full border rounded p-2 mt-1" type="date" value={from} onChange={e=>setFrom(e.target.value)}/></label><label className="text-sm">Til dato<input className="block w-full border rounded p-2 mt-1" type="date" value={to} onChange={e=>setTo(e.target.value)}/></label></div><div className="flex gap-3"><Button onClick={()=>handleCompliance('pdf')} isLoading={downloading==='compliance-pdf'}>Last ned PDF</Button><Button variant="outline" onClick={()=>handleCompliance('zip')} isLoading={downloading==='compliance-zip'}>Full ZIP-eksport</Button></div><ul className="text-xs text-gray-500 list-disc pl-5"><li>Birøkt erstatter ikke registrering av dyrehold eller bigårdsplasser hos Mattilsynet.</li><li>Journalføring i appen er ikke varsling til Mattilsynet.</li><li>Birøkteren er ansvarlig for korrekte og fullstendige registreringer.</li></ul></CardContent></Card>
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -102,7 +115,7 @@ export default function ReportsPage() {
             <div>
               <p className="font-medium text-gray-900">Sesongrapport {selectedYear}</p>
               <p className="text-sm text-gray-500">
-                Komplett oversikt over sesongen. Kan brukes for Mattilsynet.
+                Samlet rapport over registrerte opplysninger. Kontroller at journalen er fullstendig før den brukes som dokumentasjon.
               </p>
             </div>
             <Button

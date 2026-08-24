@@ -6,6 +6,7 @@ import { sendSuccess, sendError, ErrorCodes, calculatePagination } from '../util
 import prisma from '../utils/prisma.js';
 import { cacheResponse } from '../middleware/cacheMiddleware.js';
 import { cacheDeletePattern } from '../utils/cache.js';
+import { auditData } from '../services/complianceService.js';
 
 const router = Router();
 
@@ -22,6 +23,12 @@ const createApiarySchema = z.object({
     lng: z.number().min(-180).max(180).optional(),
   }).optional(),
   type: z.enum(['permanent', 'seasonal', 'heather_route']).default('permanent'),
+  registrationNumber: z.string().trim().max(100).optional(),
+  operatorName: z.string().trim().max(255).optional(),
+  operatorAddress: z.string().trim().max(1000).optional(),
+  organizationNumber: z.string().trim().max(50).optional(),
+  validFrom: z.string().datetime({ offset: true }).optional(),
+  validTo: z.string().datetime({ offset: true }).optional(),
 });
 
 const updateApiarySchema = z.object({
@@ -34,6 +41,12 @@ const updateApiarySchema = z.object({
   }).optional(),
   type: z.enum(['permanent', 'seasonal', 'heather_route']).optional(),
   active: z.boolean().optional(),
+  registrationNumber: z.string().trim().max(100).nullable().optional(),
+  operatorName: z.string().trim().max(255).nullable().optional(),
+  operatorAddress: z.string().trim().max(1000).nullable().optional(),
+  organizationNumber: z.string().trim().max(50).nullable().optional(),
+  validFrom: z.string().datetime({ offset: true }).nullable().optional(),
+  validTo: z.string().datetime({ offset: true }).nullable().optional(),
 });
 
 const listApiariesSchema = z.object({
@@ -93,6 +106,12 @@ router.get('/', validateQuery(listApiariesSchema), cacheResponse(60), async (req
         },
         type: apiary.type,
         active: apiary.active,
+        registrationNumber: apiary.registrationNumber,
+        operatorName: apiary.operatorName,
+        operatorAddress: apiary.operatorAddress,
+        organizationNumber: apiary.organizationNumber,
+        validFrom: apiary.validFrom,
+        validTo: apiary.validTo,
         hiveCount: hives.length,
         stats: {
           healthy: activeHives.filter(h => h.strength === 'strong' || h.strength === 'medium').length,
@@ -115,23 +134,28 @@ router.get('/', validateQuery(listApiariesSchema), cacheResponse(60), async (req
 router.post('/', validateBody(createApiarySchema), async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
-    const { name, description, location, type } = req.body;
+    const { name, description, location, type, registrationNumber, operatorName, operatorAddress, organizationNumber, validFrom, validTo } = req.body;
 
-    const apiary = await prisma.apiary.create({
-      data: {
+    const apiary = await prisma.$transaction(async tx => {
+      const created = await tx.apiary.create({ data: {
         name,
         description,
         locationName: location?.name,
         locationLat: location?.lat,
         locationLng: location?.lng,
         type,
+        registrationNumber, operatorName, operatorAddress, organizationNumber,
+        validFrom: validFrom ? new Date(validFrom) : null,
+        validTo: validTo ? new Date(validTo) : null,
         userApiaries: {
           create: {
             userId,
             role: 'owner',
           },
         },
-      },
+      }});
+      await tx.auditLog.create({ data: auditData({ userId, entityType: 'Apiary', entityId: created.id, action: 'create', after: created, requestId: res.locals.requestId }) });
+      return created;
     });
 
     // Invalidate apiaries cache for this user
@@ -148,6 +172,12 @@ router.post('/', validateBody(createApiarySchema), async (req: Request, res: Res
       },
       type: apiary.type,
       active: apiary.active,
+      registrationNumber: apiary.registrationNumber,
+      operatorName: apiary.operatorName,
+      operatorAddress: apiary.operatorAddress,
+      organizationNumber: apiary.organizationNumber,
+      validFrom: apiary.validFrom,
+      validTo: apiary.validTo,
       createdAt: apiary.createdAt,
     }, 201);
   } catch (error) {
@@ -221,6 +251,12 @@ router.get('/:id', validateParams(idParamSchema), cacheResponse(60), async (req:
       },
       type: apiary.type,
       active: apiary.active,
+      registrationNumber: apiary.registrationNumber,
+      operatorName: apiary.operatorName,
+      operatorAddress: apiary.operatorAddress,
+      organizationNumber: apiary.organizationNumber,
+      validFrom: apiary.validFrom,
+      validTo: apiary.validTo,
       hives: apiary.hives.map(hive => ({
         id: hive.id,
         hiveNumber: hive.hiveNumber,
@@ -247,7 +283,7 @@ router.put('/:id', validateParams(idParamSchema), validateBody(updateApiarySchem
   try {
     const userId = req.user!.id;
     const { id } = req.params;
-    const { name, description, location, type, active } = req.body;
+    const { name, description, location, type, active, registrationNumber, operatorName, operatorAddress, organizationNumber, validFrom, validTo } = req.body;
 
     // Check access (only owner can update)
     const userApiary = await prisma.userApiary.findUnique({
@@ -261,9 +297,9 @@ router.put('/:id', validateParams(idParamSchema), validateBody(updateApiarySchem
       return;
     }
 
-    const apiary = await prisma.apiary.update({
-      where: { id },
-      data: {
+    const apiary = await prisma.$transaction(async tx => {
+      const before = await tx.apiary.findUniqueOrThrow({ where: { id } });
+      const updated = await tx.apiary.update({ where: { id }, data: {
         ...(name && { name }),
         ...(description !== undefined && { description }),
         ...(location?.name !== undefined && { locationName: location.name }),
@@ -271,7 +307,15 @@ router.put('/:id', validateParams(idParamSchema), validateBody(updateApiarySchem
         ...(location?.lng !== undefined && { locationLng: location.lng }),
         ...(type && { type }),
         ...(active !== undefined && { active }),
-      },
+        ...(registrationNumber !== undefined && { registrationNumber }),
+        ...(operatorName !== undefined && { operatorName }),
+        ...(operatorAddress !== undefined && { operatorAddress }),
+        ...(organizationNumber !== undefined && { organizationNumber }),
+        ...(validFrom !== undefined && { validFrom: validFrom ? new Date(validFrom) : null }),
+        ...(validTo !== undefined && { validTo: validTo ? new Date(validTo) : null }),
+      }});
+      await tx.auditLog.create({ data: auditData({ userId, entityType: 'Apiary', entityId: id, action: 'update', before, after: updated, requestId: res.locals.requestId }) });
+      return updated;
     });
 
     // Invalidate apiaries cache for this user
@@ -288,6 +332,12 @@ router.put('/:id', validateParams(idParamSchema), validateBody(updateApiarySchem
       },
       type: apiary.type,
       active: apiary.active,
+      registrationNumber: apiary.registrationNumber,
+      operatorName: apiary.operatorName,
+      operatorAddress: apiary.operatorAddress,
+      organizationNumber: apiary.organizationNumber,
+      validFrom: apiary.validFrom,
+      validTo: apiary.validTo,
       updatedAt: apiary.updatedAt,
     });
   } catch (error) {
@@ -314,19 +364,11 @@ router.delete('/:id', validateParams(idParamSchema), async (req: Request, res: R
       return;
     }
 
-    // Check if there are hives
-    const hiveCount = await prisma.hive.count({ where: { apiaryId: id } });
-
-    if (hiveCount > 0) {
-      // Soft delete (set inactive)
-      await prisma.apiary.update({
-        where: { id },
-        data: { active: false },
-      });
-    } else {
-      // Hard delete if no hives
-      await prisma.apiary.delete({ where: { id } });
-    }
+    await prisma.$transaction(async tx => {
+      const before = await tx.apiary.findUniqueOrThrow({ where: { id } });
+      const updated = await tx.apiary.update({ where: { id }, data: { active: false } });
+      await tx.auditLog.create({ data: auditData({ userId, entityType: 'Apiary', entityId: id, action: 'update', before, after: updated, reason: 'Deactivated instead of hard deletion', requestId: res.locals.requestId }) });
+    });
 
     // Invalidate apiaries cache for this user
     cacheDeletePattern(`response:${userId}:/api/v1/apiaries`);

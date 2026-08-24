@@ -132,6 +132,14 @@ class ApiClient {
     }) as Promise<ApiResponse<T>>;
   }
 
+  async postWithHeaders<T>(endpoint: string, body: unknown, headers: Record<string, string>): Promise<ApiResponse<T>> {
+    return this.request<T>(`${this.baseUrl}${endpoint}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...headers },
+      body: JSON.stringify(body),
+    }) as Promise<ApiResponse<T>>;
+  }
+
   async put<T>(endpoint: string, body?: unknown): Promise<ApiResponse<T>> {
     return this.request<T>(`${this.baseUrl}${endpoint}`, {
       method: 'PUT',
@@ -241,6 +249,12 @@ export const apiariesApi = {
     description?: string;
     location?: { name?: string; lat?: number; lng?: number };
     type?: string;
+    registrationNumber?: string;
+    operatorName?: string;
+    operatorAddress?: string;
+    organizationNumber?: string;
+    validFrom?: string;
+    validTo?: string;
   }) => api.post('/apiaries', data),
 
   update: (id: string, data: Partial<{
@@ -249,6 +263,12 @@ export const apiariesApi = {
     location: { name?: string | null; lat?: number | null; lng?: number | null };
     type: string;
     active: boolean;
+    registrationNumber: string | null;
+    operatorName: string | null;
+    operatorAddress: string | null;
+    organizationNumber: string | null;
+    validFrom: string | null;
+    validTo: string | null;
   }>) => api.put(`/apiaries/${id}`, data),
 
   delete: (id: string) => api.delete(`/apiaries/${id}`),
@@ -419,16 +439,27 @@ export const treatmentsApi = {
 
   create: (data: {
     hiveId: string;
-    treatmentDate: string;
     productName: string;
     productType?: string;
     target?: string;
     dosage?: string;
     startDate: string;
     endDate?: string;
-    withholdingPeriodDays?: number;
+    ongoing: boolean;
+    scope: 'whole_hive' | 'colony';
+    colonyNumber?: number;
+    administeredAmount: number;
+    administeredUnit: string;
+    supplierName: string;
+    supplierAddress?: string;
+    acquisitionDate: string;
+    veterinarianName?: string;
+    veterinarianContact?: string;
+    prescriptionReference?: string;
+    productBatchNumber?: string;
+    withholdingPeriodDays: number;
     notes?: string;
-  }) => api.post('/treatments', data),
+  }) => api.post<{ id: string }>('/treatments', data),
 
   update: (id: string, data: Partial<{
     productName: string;
@@ -440,6 +471,7 @@ export const treatmentsApi = {
   }>) => api.put(`/treatments/${id}`, data),
 
   delete: (id: string) => api.delete(`/treatments/${id}`),
+  void: (id: string, reason: string) => api.post(`/treatments/${id}/void`, { reason }),
 };
 
 // Feedings API
@@ -581,6 +613,40 @@ export const reportsApi = {
       headers: { ...(token && { Authorization: `Bearer ${token}` }) },
     });
   },
+  downloadCompliance: (from: string, to: string, format: 'pdf' | 'zip', apiaryId?: string) => {
+    const params = new URLSearchParams({ from, to, format });
+    if (apiaryId) params.set('apiaryId', apiaryId);
+    const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+    const endpoint = format === 'pdf' ? 'reports/compliance' : 'export/compliance';
+    return fetch(`${API_URL}/stats/${endpoint}?${params}`, {
+      headers: { ...(token && { Authorization: `Bearer ${token}` }) },
+    });
+  },
+};
+
+export const placementsApi = {
+  list: (params?: Record<string,string>) => api.get<any[]>('/placements', params),
+  move: (data: {hiveId:string;toApiaryId:string;startedAt:string;movementType:string;reason?:string}) =>
+    api.postWithHeaders('/placements/move', data, {'Idempotency-Key': crypto.randomUUID()}),
+  batchMove: (data: {hiveIds:string[];toApiaryId:string;startedAt:string;movementType:string;reason?:string}) =>
+    api.postWithHeaders('/placements/batch-move', data, {'Idempotency-Key': crypto.randomUUID()}),
+  correct: (id:string,data:Record<string,unknown>) => api.post(`/placements/${id}/correct`,data),
+};
+
+export const complianceEventsApi = {
+  list: (params?:Record<string,string>)=>api.get<any[]>('/compliance-events',params),
+  create: (data:Record<string,unknown>)=>api.post('/compliance-events',data),
+  void: (id:string,reason:string)=>api.post(`/compliance-events/${id}/void`,{reason}),
+};
+
+export const documentsApi = {
+  upload: (formData: FormData) => api.uploadFiles<{id:string;sha256:string}>('/documents', formData),
+};
+
+export const productionBatchesApi = {
+  list: ()=>api.get<any[]>('/production-batches'),
+  create: (data:Record<string,unknown>)=>api.post('/production-batches',data),
+  decision: (id:string,decision:'release'|'hold'|'discard',reason:string)=>api.post(`/production-batches/${id}/${decision}`,{reason}),
 };
 
 // Queens API
@@ -601,8 +667,9 @@ export const queensApi = {
       temperament?: string;
       productivity?: string;
       swarmTendency?: string;
+      currentColonyNumber?: number | null;
       mother?: { id: string; queenCode: string } | null;
-      currentHive?: { id: string; hiveNumber: string; apiaryName: string } | null;
+      currentHive?: { id: string; hiveNumber: string; hiveType: string; apiaryName: string } | null;
       daughterCount: number;
       notes?: string;
       createdAt: string;
@@ -624,6 +691,7 @@ export const queensApi = {
       matingDate?: string;
       matingStation?: string;
       currentHiveId?: string;
+      currentColonyNumber?: number | null;
       introducedDate?: string;
       rating?: number;
       temperament?: string;
@@ -634,10 +702,11 @@ export const queensApi = {
       updatedAt: string;
       mother?: { id: string; queenCode: string; year: number; race?: string; status: string } | null;
       daughters: Array<{ id: string; queenCode: string; year: number; race?: string; status: string }>;
-      currentHive?: { id: string; hiveNumber: string; apiaryId: string; apiaryName: string } | null;
+      currentHive?: { id: string; hiveNumber: string; hiveType: string; apiaryId: string; apiaryName: string } | null;
       hiveHistory: Array<{
         id: string;
         hive: { id: string; hiveNumber: string; apiaryName: string };
+        colonyNumber?: number | null;
         action: string;
         date: string;
         reason?: string;
@@ -659,6 +728,9 @@ export const queensApi = {
     matingDate?: string;
     matingStation?: string;
     currentHiveId?: string;
+    currentColonyNumber?: number;
+    replaceExisting?: boolean;
+    replacementAction?: 'remove' | 'dead';
     introducedDate?: string;
     rating?: number;
     temperament?: string;
@@ -680,6 +752,9 @@ export const queensApi = {
     matingDate: string | null;
     matingStation: string | null;
     currentHiveId: string | null;
+    currentColonyNumber: number | null;
+    replaceExisting: boolean;
+    replacementAction: 'remove' | 'dead' | null;
     introducedDate: string | null;
     rating: number | null;
     temperament: string | null;
@@ -690,7 +765,15 @@ export const queensApi = {
 
   delete: (id: string) => api.delete(`/queens/${id}`),
 
-  move: (id: string, data: { hiveId: string; date: string; reason?: string; notes?: string }) =>
+  move: (id: string, data: {
+    hiveId: string;
+    currentColonyNumber?: number;
+    replaceExisting?: boolean;
+    replacementAction?: 'remove' | 'dead';
+    date: string;
+    reason?: string;
+    notes?: string;
+  }) =>
     api.post(`/queens/${id}/move`, data),
 };
 

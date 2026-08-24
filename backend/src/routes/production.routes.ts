@@ -4,6 +4,8 @@ import { validateBody, validateQuery, validateParams } from '../middleware/valid
 import { authenticate } from '../middleware/auth.js';
 import { sendSuccess, sendError, ErrorCodes, calculatePagination } from '../utils/response.js';
 import prisma from '../utils/prisma.js';
+import { auditData } from '../services/complianceService.js';
+import { executeIdempotent } from '../services/idempotencyService.js';
 
 const router = Router();
 
@@ -234,8 +236,8 @@ router.post('/', validateBody(createProductionSchema), async (req: Request, res:
     // Calculate total revenue
     const totalRevenue = pricePerKg ? pricePerKg * amountKg : null;
 
-    const production = await prisma.production.create({
-      data: {
+    const production = await executeIdempotent(req, res, 201, () => prisma.$transaction(async tx => {
+      const created = await tx.production.create({ data: {
         hiveId,
         apiaryId,
         userId,
@@ -250,8 +252,11 @@ router.post('/', validateBody(createProductionSchema), async (req: Request, res:
         soldTo,
         saleDate: saleDate ? new Date(saleDate) : null,
         notes,
-      },
-    });
+      }});
+      await tx.auditLog.create({ data: auditData({ userId, entityType: 'Production', entityId: created.id, action: 'create', after: created, requestId: res.locals.requestId }) });
+      return created;
+    }));
+    if (!production) return;
 
     sendSuccess(res, {
       id: production.id,
@@ -388,8 +393,8 @@ router.delete('/:id', validateParams(idParamSchema), async (req: Request, res: R
       return;
     }
 
-    await prisma.production.delete({ where: { id } });
-    res.status(204).send();
+    sendError(res, ErrorCodes.RECORD_RETENTION_PROTECTED, 'Produksjonsjournalen kan ikke slettes permanent. Bruk annullering med begrunnelse.', 409);
+    return;
   } catch (error) {
     console.error('Delete production error:', error);
     sendError(res, ErrorCodes.INTERNAL_ERROR, 'Failed to delete production', 500);

@@ -7,6 +7,16 @@ import {
   TestUser,
 } from './helpers.js';
 
+const requiredTreatmentFields = () => ({
+  ongoing: true,
+  scope: 'whole_hive',
+  administeredAmount: 5,
+  administeredUnit: 'ml',
+  supplierName: 'Testleverandør',
+  acquisitionDate: '2026-08-20',
+  withholdingPeriodDays: 0,
+});
+
 describe('Treatments API', () => {
   let user: TestUser;
   let apiary: { id: string };
@@ -28,6 +38,7 @@ describe('Treatments API', () => {
         .post('/api/v1/treatments')
         .set('Authorization', `Bearer ${user.accessToken}`)
         .send({
+          ...requiredTreatmentFields(),
           hiveId: hive.id,
           treatmentDate: new Date().toISOString(),
           productName: 'Oxalsyre',
@@ -46,7 +57,7 @@ describe('Treatments API', () => {
       expect(response.body.data.withholdingEndDate).toBeTruthy();
     });
 
-    it('should create treatment without optional fields', async () => {
+    it('should reject treatment without mandatory medicine fields', async () => {
       const response = await testRequest
         .post('/api/v1/treatments')
         .set('Authorization', `Bearer ${user.accessToken}`)
@@ -56,9 +67,9 @@ describe('Treatments API', () => {
           productName: 'ApiLifeVar',
           startDate: new Date().toISOString(),
         })
-        .expect(201);
+        .expect(400);
 
-      expect(response.body.success).toBe(true);
+      expect(response.body.success).toBe(false);
     });
 
     it('should reject treatment without productName', async () => {
@@ -85,6 +96,7 @@ describe('Treatments API', () => {
         .set('Authorization', `Bearer ${user.accessToken}`)
         .send({
           hiveId: otherHive.id,
+          ...requiredTreatmentFields(),
           treatmentDate: new Date().toISOString(),
           productName: 'Test',
           startDate: new Date().toISOString(),
@@ -101,6 +113,7 @@ describe('Treatments API', () => {
         .post('/api/v1/treatments')
         .set('Authorization', `Bearer ${user.accessToken}`)
         .send({
+          ...requiredTreatmentFields(),
           hiveId: hive.id,
           treatmentDate: new Date().toISOString(),
           productName: 'Oxalsyre',
@@ -121,11 +134,12 @@ describe('Treatments API', () => {
   });
 
   describe('DELETE /api/v1/treatments/:id', () => {
-    it('should delete treatment', async () => {
+    it('should protect treatment from hard deletion', async () => {
       const createRes = await testRequest
         .post('/api/v1/treatments')
         .set('Authorization', `Bearer ${user.accessToken}`)
         .send({
+          ...requiredTreatmentFields(),
           hiveId: hive.id,
           treatmentDate: new Date().toISOString(),
           productName: 'Test Delete',
@@ -136,7 +150,7 @@ describe('Treatments API', () => {
       await testRequest
         .delete(`/api/v1/treatments/${createRes.body.data.id}`)
         .set('Authorization', `Bearer ${user.accessToken}`)
-        .expect(204);
+        .expect(409);
     });
   });
 });

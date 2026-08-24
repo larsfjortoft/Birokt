@@ -176,7 +176,7 @@ describe('Apiaries API', () => {
   });
 
   describe('DELETE /api/v1/apiaries/:id', () => {
-    it('should delete apiary', async () => {
+    it('should deactivate apiary without deleting history', async () => {
       const apiary = await createTestApiary(user, { name: 'To Delete' });
 
       await testRequest
@@ -184,13 +184,13 @@ describe('Apiaries API', () => {
         .set('Authorization', `Bearer ${user.accessToken}`)
         .expect(204);
 
-      // Verify access is gone after deletion
+      // Historical access remains, while the apiary is inactive.
       const response = await testRequest
         .get(`/api/v1/apiaries/${apiary.id}`)
         .set('Authorization', `Bearer ${user.accessToken}`)
-        .expect(403);
+        .expect(200);
 
-      expect(response.body.success).toBe(false);
+      expect(response.body.data.active).toBe(false);
     });
 
     it('should not delete apiary user does not own', async () => {

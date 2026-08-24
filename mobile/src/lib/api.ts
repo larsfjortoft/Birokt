@@ -1,9 +1,13 @@
 import * as SecureStore from 'expo-secure-store';
 import { getFilename } from './imageUtils';
 
-// The personal installation always uses the API running on the Raspberry Pi.
-// This prevents a release build from picking an emulator-only address.
-const API_URL = 'http://10.0.0.16:3100/api/v1';
+// Mobile builds use the Pi address from the project handbook by default.
+// The public environment variable lets preview/production builds override this safely.
+export const API_URL =
+  process.env.EXPO_PUBLIC_API_URL ??
+  'http://10.0.0.16:3100/api/v1';
+
+const REQUEST_TIMEOUT_MS = 12_000;
 
 interface ApiResponse<T> {
   success: boolean;
@@ -71,6 +75,22 @@ class ApiClient {
     return data;
   }
 
+  private async fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+    try {
+      return await fetch(url, { ...init, signal: controller.signal });
+    } catch (error) {
+      if (controller.signal.aborted) {
+        throw new Error('Forespørselen til Birøkt tok for lang tid. Sjekk at Tailscale er tilkoblet.');
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
   private async refreshToken(): Promise<boolean> {
     if (this.refreshInFlight) {
       return this.refreshInFlight;
@@ -81,7 +101,7 @@ class ApiClient {
 
     this.refreshInFlight = (async () => {
       try {
-        const response = await fetch(`${this.baseUrl}/auth/refresh`, {
+        const response = await this.fetchWithTimeout(`${this.baseUrl}/auth/refresh`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ refreshToken }),
@@ -104,7 +124,7 @@ class ApiClient {
 
   private async request<T>(url: string, init: RequestInit, retry: boolean = true): Promise<ApiResponse<T> | void> {
     const token = await this.getToken();
-    const response = await fetch(url, {
+    const response = await this.fetchWithTimeout(url, {
       ...init,
       headers: {
         ...(init.headers || {}),
@@ -139,10 +159,11 @@ class ApiClient {
     }) as Promise<ApiResponse<T>>;
   }
 
-  async post<T>(endpoint: string, body?: unknown): Promise<ApiResponse<T>> {
+  async post<T>(endpoint: string, body?: unknown, idempotencyKey?: string): Promise<ApiResponse<T>> {
+    const key = idempotencyKey || `mobile_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`;
     return this.request<T>(`${this.baseUrl}${endpoint}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Idempotency-Key': key },
       body: body ? JSON.stringify(body) : undefined,
     }) as Promise<ApiResponse<T>>;
   }
@@ -190,6 +211,12 @@ class ApiClient {
       method: 'POST',
       body: formData,
     }) as Promise<ApiResponse<{ urls: string[] }>>;
+  }
+
+  async uploadComplianceDocument(uri:string, fields:Record<string,string>):Promise<ApiResponse<{id:string;sha256:string}>>{
+    const formData=new FormData();for(const [key,value] of Object.entries(fields))formData.append(key,value);
+    formData.append('file',{uri,type:'image/jpeg',name:getFilename(uri)} as unknown as Blob);
+    return this.request<{id:string;sha256:string}>(`${this.baseUrl}/documents`,{method:'POST',headers:{'Idempotency-Key':`mobile_doc_${Date.now()}`},body:formData}) as Promise<ApiResponse<{id:string;sha256:string}>>;
   }
 }
 
@@ -313,18 +340,30 @@ export const inspectionsApi = {
 
 // Treatments API
 export const treatmentsApi = {
+  uploadDocument: (treatmentId:string,uri:string) => api.uploadComplianceDocument(uri,{entityType:'treatment',entityId:treatmentId,documentType:'receipt'}),
   create: (data: {
     hiveId: string;
-    treatmentDate: string;
     productName: string;
     productType?: string;
     target?: string;
     dosage?: string;
     startDate: string;
     endDate?: string;
-    withholdingPeriodDays?: number;
+    ongoing: boolean;
+    scope: 'whole_hive' | 'colony';
+    colonyNumber?: number;
+    administeredAmount: number;
+    administeredUnit: string;
+    supplierName: string;
+    supplierAddress?: string;
+    acquisitionDate: string;
+    veterinarianName?: string;
+    veterinarianContact?: string;
+    prescriptionReference?: string;
+    productBatchNumber?: string;
+    withholdingPeriodDays: number;
     notes?: string;
-  }) => api.post<{ id: string }>('/treatments', data),
+  }, idempotencyKey?: string) => api.post<{ id: string }>('/treatments', data, idempotencyKey),
 
   list: (params?: Record<string, string>) =>
     api.get<Array<{
@@ -335,6 +374,17 @@ export const treatmentsApi = {
       target?: string;
       withholdingEndDate?: string;
     }>>('/treatments', params),
+};
+
+export const placementsApi = {
+  move: (data: {hiveId:string;toApiaryId:string;startedAt:string;movementType:'permanent'|'temporary'|'return'|'other';reason?:string}, idempotencyKey?:string) =>
+    api.post<{placement:{id:string}}>('/placements/move', data, idempotencyKey),
+  batchMove: (data: {hiveIds:string[];toApiaryId:string;startedAt:string;movementType:'permanent'|'temporary'|'return'|'other';reason?:string}, idempotencyKey?:string) =>
+    api.post<Array<{placement:{id:string}}>>('/placements/batch-move', data, idempotencyKey),
+};
+
+export const complianceEventsApi = {
+  create: (data: Record<string,unknown>, idempotencyKey?:string) => api.post<{id:string}>('/compliance-events',data,idempotencyKey),
 };
 
 // Feedings API

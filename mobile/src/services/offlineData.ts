@@ -127,6 +127,21 @@ export async function saveApiaries(apiaries: LocalApiary[]): Promise<void> {
   }
 }
 
+export async function replaceApiaries(apiaries: LocalApiary[]): Promise<void> {
+  const db = getDatabase();
+
+  await db.execAsync(`
+    DELETE FROM document_upload_queue;
+    DELETE FROM production_batches;
+    DELETE FROM compliance_events;
+    DELETE FROM hive_placements;
+    DELETE FROM hives;
+    DELETE FROM apiaries;
+  `);
+
+  await saveApiaries(apiaries);
+}
+
 // ==================== HIVES ====================
 
 export interface LocalHive {
@@ -338,6 +353,13 @@ export async function saveHives(hives: LocalHive[]): Promise<void> {
   }
 }
 
+export async function replaceHives(hives: LocalHive[]): Promise<void> {
+  const db = getDatabase();
+
+  await db.execAsync('DELETE FROM hives;');
+  await saveHives(hives);
+}
+
 // ==================== INSPECTIONS ====================
 
 export interface LocalInspection {
@@ -364,6 +386,8 @@ export interface LocalInspection {
   health: {
     status: string;
     varroaLevel?: string;
+    diseases?: string[];
+    pests?: string[];
   };
   actions?: Array<{ actionType: string; details?: Record<string, unknown> }>;
   colonies?: Array<{
@@ -412,6 +436,8 @@ export async function getInspections(hiveId: string, limit: number = 20): Promis
     empty_frames: number;
     health_status: string;
     varroa_level: string | null;
+    diseases: string;
+    pests: string;
     notes: string | null;
     synced_at: string | null;
     created_at: string;
@@ -448,6 +474,8 @@ export async function getInspections(hiveId: string, limit: number = 20): Promis
     health: {
       status: row.health_status,
       varroaLevel: row.varroa_level ?? undefined,
+      diseases: JSON.parse(row.diseases || '[]'),
+      pests: JSON.parse(row.pests || '[]'),
     },
     notes: row.notes ?? undefined,
     syncedAt: row.synced_at ?? undefined,
@@ -468,8 +496,8 @@ export async function createInspection(
     `INSERT INTO inspections
      (id, hive_id, inspection_date, temperature, wind_speed, weather_condition,
       strength, temperament, queen_seen, queen_laying, brood_frames, honey_frames,
-      pollen_frames, empty_frames, health_status, varroa_level, notes, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
+      pollen_frames, empty_frames, health_status, varroa_level, diseases, pests, notes, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
     [
       id,
       inspection.hiveId,
@@ -487,6 +515,8 @@ export async function createInspection(
       inspection.frames.empty,
       inspection.health.status,
       inspection.health.varroaLevel ?? null,
+      JSON.stringify(inspection.health.diseases ?? []),
+      JSON.stringify(inspection.health.pests ?? []),
       inspection.notes ?? null,
     ]
   );
@@ -533,9 +563,9 @@ export async function saveInspections(inspections: LocalInspection[]): Promise<v
       `INSERT OR REPLACE INTO inspections
        (id, hive_id, inspection_date, temperature, wind_speed, weather_condition,
         strength, temperament, queen_seen, queen_laying, brood_frames, honey_frames,
-        pollen_frames, empty_frames, health_status, varroa_level, notes,
+        pollen_frames, empty_frames, health_status, varroa_level, diseases, pests, notes,
         synced_at, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, datetime('now'))`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, datetime('now'))`,
       [
         inspection.id,
         inspection.hiveId,
@@ -553,6 +583,8 @@ export async function saveInspections(inspections: LocalInspection[]): Promise<v
         inspection.frames.empty,
         inspection.health.status,
         inspection.health.varroaLevel ?? null,
+        JSON.stringify(inspection.health.diseases ?? []),
+        JSON.stringify(inspection.health.pests ?? []),
         inspection.notes ?? null,
         inspection.createdAt,
       ]
@@ -671,6 +703,18 @@ export interface LocalTreatment {
   endDate?: string;
   withholdingPeriodDays?: number;
   withholdingEndDate?: string;
+  scope?: 'whole_hive' | 'colony';
+  colonyNumber?: number;
+  administeredAmount?: number;
+  administeredUnit?: string;
+  supplierName?: string;
+  supplierAddress?: string;
+  acquisitionDate?: string;
+  veterinarianName?: string;
+  veterinarianContact?: string;
+  prescriptionReference?: string;
+  productBatchNumber?: string;
+  ongoing?: boolean;
   notes?: string;
   syncedAt?: string;
   createdAt: string;
@@ -729,9 +773,11 @@ export async function createTreatment(
   await db.runAsync(
     `INSERT INTO treatments
      (id, hive_id, treatment_date, product_name, product_type, target, dosage,
-      start_date, end_date, withholding_period_days, withholding_end_date, notes,
+      start_date, end_date, withholding_period_days, withholding_end_date, scope, colony_number,
+      administered_amount, administered_unit, supplier_name, supplier_address, acquisition_date,
+      veterinarian_name, veterinarian_contact, prescription_reference, product_batch_number, ongoing, notes,
       created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
     [
       id,
       treatment.hiveId,
@@ -744,6 +790,10 @@ export async function createTreatment(
       treatment.endDate ?? null,
       treatment.withholdingPeriodDays ?? null,
       treatment.withholdingEndDate ?? null,
+      treatment.scope ?? 'whole_hive', treatment.colonyNumber ?? null, treatment.administeredAmount ?? null,
+      treatment.administeredUnit ?? null, treatment.supplierName ?? null, treatment.supplierAddress ?? null,
+      treatment.acquisitionDate ?? null, treatment.veterinarianName ?? null, treatment.veterinarianContact ?? null,
+      treatment.prescriptionReference ?? null, treatment.productBatchNumber ?? null, treatment.ongoing ? 1 : 0,
       treatment.notes ?? null,
     ]
   );
@@ -758,6 +808,11 @@ export async function createTreatment(
     startDate: treatment.startDate,
     endDate: treatment.endDate,
     withholdingPeriodDays: treatment.withholdingPeriodDays,
+    scope: treatment.scope, colonyNumber: treatment.colonyNumber, administeredAmount: treatment.administeredAmount,
+    administeredUnit: treatment.administeredUnit, supplierName: treatment.supplierName, supplierAddress: treatment.supplierAddress,
+    acquisitionDate: treatment.acquisitionDate, veterinarianName: treatment.veterinarianName,
+    veterinarianContact: treatment.veterinarianContact, prescriptionReference: treatment.prescriptionReference,
+    productBatchNumber: treatment.productBatchNumber, ongoing: treatment.ongoing,
     notes: treatment.notes,
   });
 
@@ -1097,3 +1152,11 @@ export async function updateLastSync(entityType: string): Promise<void> {
     [entityType]
   );
 }
+
+export async function queueComplianceDocument(entityLocalId:string,localPath:string,documentType='receipt'){
+  const db=getDatabase();const id=generateLocalId();await db.runAsync('INSERT INTO document_upload_queue (id,entity_type,entity_local_id,local_path,metadata,idempotency_key) VALUES (?,?,?,?,?,?)',[id,'treatment',entityLocalId,localPath,JSON.stringify({documentType}),generateLocalId()]);return id;
+}
+export async function getPendingComplianceDocuments(){
+  return getDatabase().getAllAsync<{id:string;entity_type:string;entity_local_id:string;local_path:string;metadata:string;idempotency_key:string}>('SELECT * FROM document_upload_queue WHERE sync_status = ? ORDER BY rowid',['pending']);
+}
+export async function markComplianceDocumentSynced(id:string){await getDatabase().runAsync('UPDATE document_upload_queue SET sync_status = ? WHERE id = ?',['synced',id]);}

@@ -10,7 +10,7 @@
     "preview": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api.birokt.no/api/v1"
+        "EXPO_PUBLIC_API_URL": "http://openclaw.tail586d8a.ts.net:3100/api/v1"
       },
       "android": {
         "buildType": "apk"
@@ -18,7 +18,7 @@
     },
     "production": {
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api.birokt.no/api/v1",
+        "EXPO_PUBLIC_API_URL": "http://openclaw.tail586d8a.ts.net:3100/api/v1",
         "EXPO_PUBLIC_SENTRY_DSN": ""
       },
       "autoIncrement": true

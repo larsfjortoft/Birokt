@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-08-24 — Myndighetsjournal og sporbar dokumentasjon
+
+- La til historisk plasserings- og flyttejournal med snapshots, batchflytting, konfliktsjekk og idempotent mobilsynk.
+- Utvidet legemiddeljournalen med anskaffelse, faktisk mengde/enhet, leverandør, veterinær/resept, eksplisitt null dagers tilbakeholdelse, fem års retensjon og annullering.
+- La til revisjonsspor, beskyttede dokumentvedlegg med SHA-256, helse-/biosikkerhets-/kontrollhendelser og sporbare produksjonspartier.
+- La til samlet PDF og integritetskontrollert ZIP-eksport med manifest, datakvalitetsavvik og rettelseshistorikk.
+- Mobilens SQLite bruker nå versjonerte migreringer og bevarer sykdommer/skadedyr samt nye journaldata offline.
+- Produkttekstene presiserer at appen støtter dokumentasjon, men ikke erstatter registrering/varsling eller garanterer juridisk etterlevelse.
+
+## 2026-06-25 — Stabil mobiltilkobling via Tailscale
+
+- Mobilappen bruker nå Pi-ens Tailscale MagicDNS-adresse, slik at den fungerer både hjemme og utenfor lokalnettet.
+- API-kall stopper etter 12 sekunder med en forklarende melding i stedet for å henge lenge når Tailscale ikke er tilgjengelig.
+- Data oppdateres når appen åpnes igjen, og cachen er redusert til ett minutt.
+- Lokale mobilbygg bruker samme Tailscale-adresse som releasebygg, og sync erstatter nå lokal offline-cache med serverens fasit.
+
 ## 2026-06-21 — Hermes-agent API
 
 - La til agentkatalog og Hermes-skill for å styre Birøkt via det samme API-et som web- og mobilappen bruker.

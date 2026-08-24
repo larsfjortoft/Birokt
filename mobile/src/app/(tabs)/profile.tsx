@@ -54,7 +54,7 @@ export default function ProfileScreen() {
 
         <TouchableOpacity
           style={styles.menuItem}
-          onPress={() => router.push('/settings')}
+          onPress={() => router.push('/settings/index')}
           accessibilityRole="button"
           accessibilityLabel="Innstillinger"
         >

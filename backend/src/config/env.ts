@@ -23,6 +23,9 @@ const envSchema = z.object({
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
   SMTP_FROM: z.string().optional(),
+  COMPLIANCE_RETENTION_YEARS: z.coerce.number().int().min(5).default(5),
+  COMPLIANCE_DOCUMENT_DIR: z.string().default('uploads/compliance'),
+  COMPLIANCE_MAX_FILE_BYTES: z.coerce.number().int().positive().default(10 * 1024 * 1024),
 });
 
 const parsed = envSchema.safeParse(process.env);

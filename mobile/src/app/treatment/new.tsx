@@ -15,7 +15,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { treatmentsApi } from '../../lib/api';
 import { VoiceInput } from '../../components/VoiceInput';
 import { useNetworkStatus } from '../../hooks/useOffline';
-import { createTreatment } from '../../services/offlineData';
+import { createTreatment, queueComplianceDocument } from '../../services/offlineData';
+import { PhotoPicker } from '../../components/PhotoPicker';
 
 const productTypeOptions = [
   { value: 'organic_acid', label: 'Organisk syre' },
@@ -38,22 +39,33 @@ export default function NewTreatmentScreen() {
   const queryClient = useQueryClient();
   const isOnline = useNetworkStatus();
   const [saving, setSaving] = useState(false);
+  const [documents,setDocuments]=useState<string[]>([]);
 
   const [formData, setFormData] = useState({
     productName: '',
     productType: 'organic_acid',
     target: 'varroa',
     dosage: '',
-    withholdingPeriodDays: '',
+    withholdingPeriodDays: '0',
+    administeredAmount: '',
+    administeredUnit: 'ml',
+    supplierName: '',
+    supplierAddress: '',
+    acquisitionDate: new Date().toISOString().split('T')[0],
+    productBatchNumber: '',
+    veterinarianName: '',
+    veterinarianContact: '',
+    prescriptionReference: '',
+    scope: 'whole_hive' as 'whole_hive' | 'colony',
+    colonyNumber: '',
     notes: '',
   });
-
-  const today = new Date().toISOString().split('T')[0];
 
   const createMutation = useMutation({
     mutationFn: (data: Parameters<typeof treatmentsApi.create>[0]) =>
       treatmentsApi.create(data),
-    onSuccess: () => {
+    onSuccess: async (response) => {
+      if(response.data?.id)for(const uri of documents)await treatmentsApi.uploadDocument(response.data.id,uri);
       queryClient.invalidateQueries({ queryKey: ['hive', hiveId] });
       Alert.alert('Lagret', 'Behandlingen er registrert', [
         { text: 'OK', onPress: () => router.back() },
@@ -65,8 +77,8 @@ export default function NewTreatmentScreen() {
   });
 
   const handleSave = async () => {
-    if (!formData.productName.trim()) {
-      Alert.alert('Mangler data', 'Produktnavn er påkrevd');
+    if (!formData.productName.trim() || !formData.administeredAmount || !formData.administeredUnit.trim() || !formData.supplierName.trim() || formData.withholdingPeriodDays === '') {
+      Alert.alert('Mangler data', 'Produkt, faktisk mengde/enhet, leverandør og tilbakeholdelsestid er påkrevd');
       return;
     }
 
@@ -78,9 +90,19 @@ export default function NewTreatmentScreen() {
       target: formData.target,
       dosage: formData.dosage || undefined,
       startDate: new Date().toISOString(),
-      withholdingPeriodDays: formData.withholdingPeriodDays
-        ? parseInt(formData.withholdingPeriodDays)
-        : undefined,
+      ongoing: true,
+      scope: formData.scope,
+      colonyNumber: formData.scope === 'colony' ? Number(formData.colonyNumber) : undefined,
+      administeredAmount: Number(formData.administeredAmount),
+      administeredUnit: formData.administeredUnit,
+      supplierName: formData.supplierName,
+      supplierAddress: formData.supplierAddress || undefined,
+      acquisitionDate: formData.acquisitionDate,
+      productBatchNumber: formData.productBatchNumber || undefined,
+      veterinarianName: formData.veterinarianName || undefined,
+      veterinarianContact: formData.veterinarianContact || undefined,
+      prescriptionReference: formData.prescriptionReference || undefined,
+      withholdingPeriodDays: parseInt(formData.withholdingPeriodDays, 10),
       notes: formData.notes || undefined,
     };
 
@@ -89,7 +111,7 @@ export default function NewTreatmentScreen() {
     } else {
       setSaving(true);
       try {
-        await createTreatment(data);
+        const localId=await createTreatment(data);for(const uri of documents)await queueComplianceDocument(localId,uri);
         queryClient.invalidateQueries({ queryKey: ['hive', hiveId] });
         Alert.alert('Lagret lokalt', 'Behandlingen synkroniseres når du er tilkoblet', [
           { text: 'OK', onPress: () => router.back() },
@@ -205,6 +227,20 @@ export default function NewTreatmentScreen() {
 
       {/* Withholding period */}
       <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Administrering og anskaffelse</Text>
+        <Text style={styles.label}>Faktisk administrert mengde *</Text><View style={styles.buttonRow}><TextInput style={[styles.input,{flex:2}]} value={formData.administeredAmount} onChangeText={v=>updateField('administeredAmount',v)} keyboardType="decimal-pad" placeholder="Mengde"/><TextInput style={[styles.input,{flex:1}]} value={formData.administeredUnit} onChangeText={v=>updateField('administeredUnit',v)} placeholder="Enhet"/></View>
+        <Text style={styles.label}>Leverandør *</Text><TextInput style={styles.input} value={formData.supplierName} onChangeText={v=>updateField('supplierName',v)} />
+        <Text style={styles.label}>Leverandøradresse</Text><TextInput style={styles.input} value={formData.supplierAddress} onChangeText={v=>updateField('supplierAddress',v)} />
+        <Text style={styles.label}>Anskaffelsesdato (ÅÅÅÅ-MM-DD) *</Text><TextInput style={styles.input} value={formData.acquisitionDate} onChangeText={v=>updateField('acquisitionDate',v)} />
+        <Text style={styles.label}>Preparatets batch-/lotnummer</Text><TextInput style={styles.input} value={formData.productBatchNumber} onChangeText={v=>updateField('productBatchNumber',v)} />
+        <Text style={styles.label}>Omfang</Text><View style={styles.buttonRow}>{(['whole_hive','colony'] as const).map(v=><TouchableOpacity key={v} style={[styles.optionButton,formData.scope===v&&styles.optionSelected]} onPress={()=>updateField('scope',v)}><Text>{v==='whole_hive'?'Hele kuben':'Bestemt bifolk'}</Text></TouchableOpacity>)}</View>
+        {formData.scope==='colony'&&<TextInput style={styles.input} value={formData.colonyNumber} onChangeText={v=>updateField('colonyNumber',v)} keyboardType="numeric" placeholder="Bifolk 1 eller 2"/>}
+        <Text style={styles.label}>Veterinær og kontakt</Text><TextInput style={styles.input} value={formData.veterinarianName} onChangeText={v=>updateField('veterinarianName',v)} placeholder="Navn"/><TextInput style={styles.input} value={formData.veterinarianContact} onChangeText={v=>updateField('veterinarianContact',v)} placeholder="Kontakt"/>
+        <Text style={styles.label}>Reseptreferanse</Text><TextInput style={styles.input} value={formData.prescriptionReference} onChangeText={v=>updateField('prescriptionReference',v)} />
+      </View>
+
+      {/* Withholding period */}
+      <View style={styles.section}>
         <Text style={styles.sectionTitle}>
           <Ionicons name="time-outline" size={18} color="#f59e0b" /> Tilbakeholdelse
         </Text>
@@ -227,6 +263,9 @@ export default function NewTreatmentScreen() {
           </Text>
         ) : null}
       </View>
+
+      {/* Notes */}
+      <View style={styles.section}><Text style={styles.sectionTitle}>Kvittering, faktura eller resept</Text><PhotoPicker photos={documents} onPhotosChange={setDocuments}/></View>
 
       {/* Notes */}
       <View style={styles.section}>
