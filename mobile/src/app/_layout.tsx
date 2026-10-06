@@ -9,6 +9,8 @@ import { OfflineIndicator } from '../components/OfflineIndicator';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { initSentry, setUserContext } from '../lib/sentry';
 import * as SplashScreen from 'expo-splash-screen';
+import NetInfo from '@react-native-community/netinfo';
+import { recoverFieldRecordings, transferFieldRecordings } from '../services/fieldRecordings';
 
 initSentry();
 SplashScreen.preventAutoHideAsync();
@@ -46,6 +48,7 @@ export default function RootLayout() {
       try {
         // Initialize offline database
         await initDatabase();
+        await recoverFieldRecordings();
         setDbInitialized(true);
         if (__DEV__) console.log('Offline database initialized');
 
@@ -59,6 +62,15 @@ export default function RootLayout() {
     };
     init();
   }, []);
+
+  useEffect(() => {
+    if (!dbInitialized) return;
+    const send = () => { void transferFieldRecordings().catch(() => undefined); };
+    send();
+    const unsubscribe = NetInfo.addEventListener(state => { if (state.isConnected) send(); });
+    const listener = AppState.addEventListener('change', state => { if (state === 'active') send(); });
+    return () => { unsubscribe(); listener.remove(); };
+  }, [dbInitialized]);
 
   // Register push notifications after real auth and sync Sentry user context
   const { isAuthenticated, user } = useAuthStore();

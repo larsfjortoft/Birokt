@@ -225,7 +225,7 @@ export default function HiveDetailPage() {
                   <p className="text-sm text-gray-500">Helsetilstand</p>
                   {colony.healthStatus ? (
                     <span className={`inline-block px-2 py-1 mt-1 rounded text-xs font-medium ${getHealthColor(colony.healthStatus)}`}>
-                      {colony.healthStatus === 'healthy' ? 'Frisk' : colony.healthStatus === 'warning' ? 'Advarsel' : 'Kritisk'}
+                      {colony.healthStatus == null ? 'Ikke undersøkt' : colony.healthStatus === 'healthy' ? 'Frisk' : colony.healthStatus === 'warning' ? 'Advarsel' : 'Kritisk'}
                     </span>
                   ) : (
                     <p className="text-gray-400 text-sm mt-1">Ikke vurdert</p>
@@ -240,7 +240,7 @@ export default function HiveDetailPage() {
                 <div>
                   <p className="text-sm text-gray-500">Dronning</p>
                   <p className="mt-1 text-sm font-medium text-gray-900">
-                    {colony.queenSeen ? 'Sett' : 'Ikke sett'} · {colony.queenLaying ? 'Legger egg' : 'Legger ikke egg'}
+                    {colony.queenSeen == null ? 'Ukjent' : colony.queenSeen ? 'Sett' : 'Ikke sett'} · {colony.queenLaying == null ? 'Ukjent' : colony.queenLaying ? 'Legger egg' : 'Legger ikke egg'}
                   </p>
                 </div>
               </div>
@@ -430,7 +430,7 @@ export default function HiveDetailPage() {
                         </span>
                       )}
                       <span className={`px-2 py-0.5 rounded text-xs font-medium ${getHealthColor(inspection.healthStatus)}`}>
-                        {inspection.healthStatus === 'healthy' ? 'Frisk' : inspection.healthStatus === 'warning' ? 'Advarsel' : 'Kritisk'}
+                        {inspection.healthStatus == null ? 'Ikke undersøkt' : inspection.healthStatus === 'healthy' ? 'Frisk' : inspection.healthStatus === 'warning' ? 'Advarsel' : 'Kritisk'}
                       </span>
                     </div>
                     {inspection.notes && (

@@ -186,7 +186,7 @@ async function syncInspection(
       hiveId,
       inspectionDate: payload.inspectionDate as string,
       weather: payload.weather as { temperature?: number; windSpeed?: number; condition?: string },
-      assessment: payload.assessment as { strength?: string; temperament?: string; queenSeen?: boolean; queenLaying?: boolean },
+      assessment: payload.assessment as { strength?: string; temperament?: string; queenSeen?: boolean | null; queenLaying?: boolean | null },
       frames: payload.frames as { brood?: number; honey?: number; pollen?: number; empty?: number },
       health: payload.health as { status?: string; varroaLevel?: string; diseases?: string[]; pests?: string[] },
       notes: payload.notes as string | undefined,
@@ -386,8 +386,8 @@ export async function pullFromServer(): Promise<{
               weatherCondition?: string;
               strength?: string;
               temperament?: string;
-              queenSeen?: boolean;
-              queenLaying?: boolean;
+              queenSeen?: boolean | null;
+              queenLaying?: boolean | null;
               broodFrames?: number;
               honeyFrames?: number;
               pollenFrames?: number;
@@ -411,17 +411,17 @@ export async function pullFromServer(): Promise<{
               assessment: {
                 strength: i.strength,
                 temperament: i.temperament,
-                queenSeen: i.queenSeen ?? false,
-                queenLaying: i.queenLaying ?? false,
+                queenSeen: i.queenSeen ?? null,
+                queenLaying: i.queenLaying ?? null,
               },
               frames: {
-                brood: i.broodFrames ?? 0,
-                honey: i.honeyFrames ?? 0,
-                pollen: i.pollenFrames ?? 0,
-                empty: i.emptyFrames ?? 0,
+                brood: i.broodFrames ?? null,
+                honey: i.honeyFrames ?? null,
+                pollen: i.pollenFrames ?? null,
+                empty: i.emptyFrames ?? null,
               },
               health: {
-                status: i.healthStatus ?? 'healthy',
+                status: i.healthStatus ?? null,
                 varroaLevel: i.varroaLevel,
               },
               notes: i.notes,

@@ -9,6 +9,7 @@ const router = Router();
 router.use(authenticate);
 
 const resources = [
+  { name: 'visits', path: '/visits', operations: ['list', 'get', 'review', 'retry'], description: 'Completed field visits, original transcript and review proposals' },
   { name: 'apiaries', path: '/apiaries', operations: ['list', 'get', 'create', 'update', 'delete'], description: 'Apiaries and locations' },
   { name: 'hives', path: '/hives', operations: ['list', 'get', 'create', 'update', 'delete', 'getByQr'], description: 'Hives, status and queen details' },
   { name: 'inspections', path: '/inspections', operations: ['list', 'get', 'create', 'update', 'delete', 'uploadPhotos'], description: 'Hive inspections' },
@@ -57,6 +58,8 @@ All responses use \`{ success, data, meta }\`. Send JSON with
 ## Working rules
 
 - Read the relevant apiary, hive or record before updating it.
+- Completed field visits use \`/visits\` and PC review. Do not separately register their proposal entries through CRUD: the entry approval operation owns idempotency.
+- Omitted inspection observations are unknown. Never infer false, zero or healthy from silence.
 - Resolve names to IDs with \`GET /apiaries\`, \`GET /hives\`, or \`GET /search?q=...\`.
 - Create, update and delete actions change the same data shown in the web and mobile apps.
 - Never delete records unless the user explicitly asks. Report the created or changed record afterwards.

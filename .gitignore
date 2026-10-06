@@ -80,6 +80,8 @@ web-build/
 # Misc
 *.pem
 .cache/
+data/
+backend/prisma/schema.before-visits.prisma
 
 # Windows reserved filename artifact
 nul

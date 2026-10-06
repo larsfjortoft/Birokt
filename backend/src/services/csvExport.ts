@@ -1,3 +1,4 @@
+import { observationQuality, observedList } from './inspectionService.js';
 import prisma from '../utils/prisma.js';
 
 function escapeCsv(value: unknown): string {
@@ -51,7 +52,7 @@ export async function exportInspectionsCsv(userId: string, year?: number): Promi
     'Dato', 'Bigard', 'Kube', 'Styrke', 'Temperament',
     'Dronning sett', 'Legger egg', 'Yngelrammer', 'Honningrammer',
     'Pollenrammer', 'Tomme rammer', 'Helsestatus', 'Varroatrykk',
-    'Temperatur', 'Vind', 'Vaer', 'Sykdommer', 'Skadedyr', 'Notater',
+    'Temperatur', 'Vind', 'Vaer', 'Sykdommer', 'Skadedyr', 'Notater', 'Observasjonsgrunnlag',
   ];
 
   const rows = inspections.map(i => [
@@ -60,8 +61,8 @@ export async function exportInspectionsCsv(userId: string, year?: number): Promi
     i.hive.hiveNumber,
     i.strength || '',
     i.temperament || '',
-    i.queenSeen ? 'Ja' : 'Nei',
-    i.queenLaying ? 'Ja' : 'Nei',
+    i.queenSeen == null ? 'Ukjent' : i.queenSeen ? 'Ja' : 'Nei',
+    i.queenLaying == null ? 'Ukjent' : i.queenLaying ? 'Ja' : 'Nei',
     i.broodFrames,
     i.honeyFrames,
     i.pollenFrames,
@@ -71,9 +72,10 @@ export async function exportInspectionsCsv(userId: string, year?: number): Promi
     i.temperature ?? '',
     i.windSpeed ?? '',
     i.weatherCondition || '',
-    i.diseases,
-    i.pests,
+    observedList(i.diseases, i.metadata, 'diseases') == null ? 'Ukjent' : i.diseases,
+    observedList(i.pests, i.metadata, 'pests') == null ? 'Ukjent' : i.pests,
     i.notes || '',
+    observationQuality(i.metadata) === 'explicit' ? 'Eksplisitte observasjoner' : 'Eldre data – standardverdier kan være usikre',
   ]);
 
   return [toCsvRow(headers), ...rows.map(toCsvRow)].join('\n');

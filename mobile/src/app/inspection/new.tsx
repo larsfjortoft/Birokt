@@ -55,18 +55,18 @@ type ColonyFormData = {
   colonyNumber: number;
   strength: 'weak' | 'medium' | 'strong';
   temperament: 'calm' | 'nervous' | 'aggressive';
-  queenSeen: boolean;
-  queenLaying: boolean;
+  queenSeen: boolean | null;
+  queenLaying: boolean | null;
 };
 
 const createDefaultColonies = (hiveType?: string): ColonyFormData[] => {
   const colonyCount = hiveType === 'double_queen' ? 2 : 1;
   return Array.from({ length: colonyCount }, (_, index) => ({
     colonyNumber: index + 1,
-    strength: 'medium',
-    temperament: 'calm',
-    queenSeen: false,
-    queenLaying: true,
+    strength: '' as 'weak' | 'medium' | 'strong',
+    temperament: '' as 'calm' | 'nervous' | 'aggressive',
+    queenSeen: null,
+    queenLaying: null,
   }));
 };
 
@@ -81,7 +81,7 @@ export default function NewInspectionScreen() {
 
   const [formData, setFormData] = useState({
     colonies: createDefaultColonies(hiveType),
-    healthObservations: ['ok'],
+    healthObservations: [] as string[],
     notes: '',
   });
 
@@ -159,29 +159,31 @@ export default function NewInspectionScreen() {
 
   const handleSave = async () => {
     const observedIssues = formData.healthObservations.filter((item) => item !== 'ok');
-    const healthStatus = observedIssues.length > 0 ? 'warning' : 'healthy';
+    const healthStatus = observedIssues.length > 0 ? 'warning' : formData.healthObservations.includes('ok') ? 'healthy' : null;
     const diseases = observedIssues.filter((item) => ['chalkbrood', 'foulbrood', 'other'].includes(item));
     const pests = observedIssues.filter((item) => item === 'varroa');
     const primaryColony = formData.colonies[0] ?? createDefaultColonies(hiveType)[0];
     const colonies = formData.colonies.map((colony) => ({
       ...colony,
-      needsFood: selectedActions.includes('needs_food'),
-      healthStatus: healthStatus as 'healthy' | 'warning' | 'critical',
+      strength: colony.strength || undefined,
+      temperament: colony.temperament || undefined,
+      needsFood: selectedActions.includes('needs_food') ? true : null,
+      healthStatus: healthStatus as 'healthy' | 'warning' | 'critical' | null,
     }));
 
     const payload = {
       hiveId,
       inspectionDate: new Date().toISOString(),
       assessment: {
-        strength: primaryColony.strength,
-        temperament: primaryColony.temperament,
+        strength: primaryColony.strength || undefined,
+        temperament: primaryColony.temperament || undefined,
         queenSeen: primaryColony.queenSeen,
         queenLaying: primaryColony.queenLaying,
       },
       health: {
         status: healthStatus,
-        diseases,
-        pests,
+        diseases: healthStatus === null ? null : diseases,
+        pests: healthStatus === null ? null : pests,
       },
       actions: selectedActions.length > 0 ? selectedActions.map((a) => ({ actionType: a })) : undefined,
       colonies,
@@ -201,18 +203,16 @@ export default function NewInspectionScreen() {
         assessment: {
           strength: payload.assessment?.strength,
           temperament: payload.assessment?.temperament,
-          queenSeen: payload.assessment?.queenSeen ?? false,
-          queenLaying: payload.assessment?.queenLaying ?? false,
+          queenSeen: payload.assessment?.queenSeen ?? null,
+          queenLaying: payload.assessment?.queenLaying ?? null,
         },
         frames: {
-          brood: 0,
-          honey: 0,
-          pollen: 0,
-          empty: 0,
+          brood: null,
+          honey: null,
+          pollen: null,
+          empty: null,
         },
-        health: {
-          status: payload.health?.status || 'healthy',
-        },
+        health: payload.health,
         actions: payload.actions,
         notes: payload.notes,
         photos,
@@ -347,32 +347,32 @@ export default function NewInspectionScreen() {
             <View style={styles.checkboxGrid}>
               <TouchableOpacity
                 style={styles.checkbox}
-                onPress={() => updateColony(colony.colonyNumber, 'queenSeen', !colony.queenSeen)}
+                onPress={() => updateColony(colony.colonyNumber, 'queenSeen', colony.queenSeen === null ? true : colony.queenSeen ? false : null)}
                 accessibilityRole="checkbox"
                 accessibilityLabel={`Bifolk ${colony.colonyNumber} dronning sett`}
-                accessibilityState={{ checked: colony.queenSeen }}
+                accessibilityState={{ checked: colony.queenSeen ?? false }}
               >
                 <Ionicons
                   name={colony.queenSeen ? 'checkbox' : 'square-outline'}
                   size={22}
                   color={colony.queenSeen ? '#f59e0b' : '#9ca3af'}
                 />
-                <Text style={styles.checkboxLabel}>Dronning sett</Text>
+                <Text style={styles.checkboxLabel}>Dronning sett: {colony.queenSeen == null ? 'Ukjent' : colony.queenSeen ? 'Ja' : 'Nei'}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.checkbox}
-                onPress={() => updateColony(colony.colonyNumber, 'queenLaying', !colony.queenLaying)}
+                onPress={() => updateColony(colony.colonyNumber, 'queenLaying', colony.queenLaying === null ? true : colony.queenLaying ? false : null)}
                 accessibilityRole="checkbox"
                 accessibilityLabel={`Bifolk ${colony.colonyNumber} dronning legger egg`}
-                accessibilityState={{ checked: colony.queenLaying }}
+                accessibilityState={{ checked: colony.queenLaying ?? false }}
               >
                 <Ionicons
                   name={colony.queenLaying ? 'checkbox' : 'square-outline'}
                   size={22}
                   color={colony.queenLaying ? '#f59e0b' : '#9ca3af'}
                 />
-                <Text style={styles.checkboxLabel}>Dronning legger egg</Text>
+                <Text style={styles.checkboxLabel}>Dronning legger egg: {colony.queenLaying == null ? 'Ukjent' : colony.queenLaying ? 'Ja' : 'Nei'}</Text>
               </TouchableOpacity>
             </View>
           </View>

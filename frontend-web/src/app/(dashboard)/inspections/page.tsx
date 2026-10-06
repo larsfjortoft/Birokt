@@ -230,7 +230,7 @@ function InspectionsPageContent() {
                                 </span>
                               )}
                               <span className={cn('px-2 py-0.5 rounded text-xs font-medium', getHealthColor(inspection.health.status))}>
-                                {healthLabels[inspection.health.status] || inspection.health.status}
+                                {inspection.health.status == null ? 'Ikke undersøkt' : healthLabels[inspection.health.status] || inspection.health.status}
                               </span>
                               {inspection.assessment.queenSeen && (
                                 <span className="px-2 py-0.5 rounded text-xs font-medium text-purple-600 bg-purple-100">

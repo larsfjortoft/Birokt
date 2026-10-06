@@ -12,6 +12,7 @@ import { apiVersion } from './middleware/apiVersion.js';
 import { startNotificationScheduler } from './services/notificationScheduler.js';
 import prisma from './utils/prisma.js';
 import { env } from './config/env.js';
+import { startVisitWorker } from './services/visitService.js';
 
 const app = express();
 const PORT = env.PORT;
@@ -90,6 +91,7 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 let server: ReturnType<typeof app.listen> | null = null;
+let stopVisitWorker: (() => void) | undefined;
 
 // Start server outside tests
 if (env.NODE_ENV !== 'test') {
@@ -99,11 +101,13 @@ if (env.NODE_ENV !== 'test') {
 
     // Start notification scheduler
     startNotificationScheduler();
+    stopVisitWorker = startVisitWorker();
   });
 }
 
 async function shutdown(signal: string) {
   console.log(`Received ${signal}. Shutting down gracefully...`);
+  stopVisitWorker?.();
   if (server) {
     server.close();
   }

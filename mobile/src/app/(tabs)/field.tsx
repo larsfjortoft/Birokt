@@ -1,368 +1,78 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { File, Paths } from 'expo-file-system';
-import {
-  RecordingPresets,
-  getRecordingPermissionsAsync,
-  requestRecordingPermissionsAsync,
-  setAudioModeAsync,
-  useAudioPlayer,
-  useAudioPlayerStatus,
-  useAudioRecorder,
-  useAudioRecorderState,
-} from 'expo-audio';
-import { FIELD_VOICE_URL, sendFieldVoiceClip } from '../../lib/fieldVoice';
-
-const SILENCE_THRESHOLD_DB = -42;
-const SILENCE_TO_SEND_MS = 1500;
-const MIN_SPEECH_MS = 500;
-const MAX_RECORDING_MS = 45_000;
-const NO_SPEECH_RESTART_MS = 8_000;
-
-type FieldStatus = 'idle' | 'listening' | 'processing' | 'replying' | 'error';
-
-interface Turn {
-  transcript: string;
-  replyText: string;
-  at: string;
-}
-
+import { useEffect, useState } from 'react';
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View, Vibration } from 'react-native';
+import { useQuery } from '@tanstack/react-query';
+import { useAudioRecorderState } from 'expo-audio';
+import { apiariesApi } from '../../lib/api';
+import { getApiaries } from '../../services/offlineData';
+import { getFieldRecorder, startFieldRecording, finishFieldRecording, listFieldRecordings, isFieldRecordingActive, transferFieldRecordings, LocalRecording } from '../../services/fieldRecordings';
+import { fieldVisitsApi } from '../../lib/fieldVoice';
+const labels = { awaiting_audio: 'Venter på lyd', queued: 'Overført – venter på behandling', processing: 'Hermes behandler besøket', ready: 'Ferdig behandlet – klart på PC', failed: 'Behandling feilet' };
 export default function FieldModeScreen() {
-  const sessionId = useMemo(() => `birokt-field-${Date.now()}`, []);
-  const recorder = useAudioRecorder({
-    ...RecordingPresets.HIGH_QUALITY,
-    isMeteringEnabled: true,
-  });
-  const recorderState = useAudioRecorderState(recorder, 250);
-  const player = useAudioPlayer(null, { updateInterval: 250 });
-  const playerStatus = useAudioPlayerStatus(player);
-  const [enabled, setEnabled] = useState(false);
-  const [status, setStatus] = useState<FieldStatus>('idle');
-  const [lastError, setLastError] = useState<string | null>(null);
-  const [turns, setTurns] = useState<Turn[]>([]);
-  const activeRef = useRef(false);
-  const busyRef = useRef(false);
-  const heardSpeechAtRef = useRef<number | null>(null);
-  const silenceStartedAtRef = useRef<number | null>(null);
-  const recordingStartedAtRef = useRef<number | null>(null);
-
+  const audio = getFieldRecorder();
+  const audioState = useAudioRecorderState(audio, 500);
+  const [selected, setSelected] = useState('');
+  const [items, setItems] = useState<LocalRecording[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [transferring, setTransferring] = useState(false);
+  const [error, setError] = useState('');
+  const [offlineApiaries, setOfflineApiaries] = useState<Array<{ id: string; name: string }>>([]);
+  const { data, isError } = useQuery({ queryKey: ['apiaries', 'field'], queryFn: () => apiariesApi.list() });
+  const apiaries = data?.data || offlineApiaries;
+  const refresh = async () => setItems(await listFieldRecordings());
   useEffect(() => {
-    activeRef.current = enabled;
-  }, [enabled]);
-
+    void getApiaries().then(setOfflineApiaries).catch(() => undefined); void refresh();
+    const timer = setInterval(() => { void refresh(); }, 3000);
+    return () => clearInterval(timer);
+  }, []);
   useEffect(() => {
-    if (enabled) {
-      startListening();
-      return;
+    if (isFieldRecordingActive() && !audioState.isRecording && !busy && audioState.durationMillis > 0) {
+      setBusy(true);
+      void finishFieldRecording(true).then(() => { setError('Opptaket ble avbrutt. Den bevarte lyden er sikret lokalt.'); return refresh(); }).catch(e => setError(String(e))).finally(() => setBusy(false));
     }
-
-    if (recorderState.isRecording) {
-      recorder.stop().catch(() => {});
-    }
-    busyRef.current = false;
-    resetVoiceDetection();
-    setStatus('idle');
-  }, [enabled]);
-
-  useEffect(() => {
-    if (!enabled || busyRef.current || !recorderState.isRecording) return;
-
-    const now = Date.now();
-    const startedAt = recordingStartedAtRef.current ?? now;
-    const duration = now - startedAt;
-    const metering = recorderState.metering ?? -160;
-    const isVoice = metering > SILENCE_THRESHOLD_DB;
-
-    if (isVoice) {
-      if (heardSpeechAtRef.current == null) heardSpeechAtRef.current = now;
-      silenceStartedAtRef.current = null;
-      return;
-    }
-
-    if (heardSpeechAtRef.current != null) {
-      if (silenceStartedAtRef.current == null) silenceStartedAtRef.current = now;
-      const speechMs = now - heardSpeechAtRef.current;
-      const silenceMs = now - silenceStartedAtRef.current;
-
-      if (speechMs >= MIN_SPEECH_MS && silenceMs >= SILENCE_TO_SEND_MS) {
-        stopAndSubmit();
-      }
-      return;
-    }
-
-    if (duration >= NO_SPEECH_RESTART_MS) {
-      restartEmptyRecording();
-    }
-
-    if (duration >= MAX_RECORDING_MS) {
-      stopAndSubmit();
-    }
-  }, [
-    enabled,
-    recorderState.durationMillis,
-    recorderState.isRecording,
-    recorderState.metering,
-  ]);
-
-  useEffect(() => {
-    if (status === 'replying' && playerStatus.didJustFinish) {
-      setStatus('listening');
-      if (activeRef.current) startListening();
-    }
-  }, [playerStatus.didJustFinish, status]);
-
-  const resetVoiceDetection = () => {
-    heardSpeechAtRef.current = null;
-    silenceStartedAtRef.current = null;
-    recordingStartedAtRef.current = null;
+  }, [audioState.isRecording, audioState.durationMillis, busy]);
+  const send = async () => {
+    setTransferring(true);
+    try { await transferFieldRecordings(); await refresh(); } finally { setTransferring(false); }
   };
-
-  const ensureMicrophone = async () => {
-    const current = await getRecordingPermissionsAsync();
-    if (current.granted) return true;
-
-    const requested = await requestRecordingPermissionsAsync();
-    return requested.granted;
-  };
-
-  const startListening = async () => {
-    if (busyRef.current || recorderState.isRecording) return;
-
-    const granted = await ensureMicrophone();
-    if (!granted) {
-      setEnabled(false);
-      Alert.alert('Mikrofon', 'Feltmodus trenger mikrofontilgang for a lytte.');
-      return;
-    }
-
+  const toggle = async () => {
+    if (busy) return;
+    setBusy(true); setError('');
     try {
-      resetVoiceDetection();
-      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
-      await recorder.prepareToRecordAsync();
-      recorder.record();
-      recordingStartedAtRef.current = Date.now();
-      setStatus('listening');
-      setLastError(null);
-    } catch (error) {
-      setStatus('error');
-      setLastError(error instanceof Error ? error.message : 'Kunne ikke starte opptak.');
-    }
-  };
-
-  const restartEmptyRecording = async () => {
-    if (busyRef.current) return;
-    busyRef.current = true;
-    try {
-      await recorder.stop();
-    } catch {
-      // Empty recordings can fail to stop cleanly on some Android devices.
-    } finally {
-      busyRef.current = false;
-      if (activeRef.current) startListening();
-    }
-  };
-
-  const stopAndSubmit = async () => {
-    if (busyRef.current) return;
-    busyRef.current = true;
-    setStatus('processing');
-
-    try {
-      await recorder.stop();
-      const uri = recorder.uri;
-      resetVoiceDetection();
-
-      if (!uri) {
-        throw new Error('Opptaket manglet lydfil.');
+      if (isFieldRecordingActive()) { await finishFieldRecording(); Vibration.vibrate([0, 100, 100, 100]); await refresh(); void send(); }
+      else {
+        const apiary = apiaries.find(a => a.id === selected);
+        if (!apiary) throw new Error('Velg bigård først.');
+        await startFieldRecording(apiary.id, apiary.name); Vibration.vibrate(150); await refresh();
       }
-
-      const response = await sendFieldVoiceClip(uri, { sessionId });
-      setTurns((current) => [
-        {
-          transcript: response.transcript,
-          replyText: response.replyText,
-          at: new Date().toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' }),
-        },
-        ...current,
-      ]);
-
-      if (response.replyAudioBase64) {
-        const replyFile = new File(Paths.cache, `field-reply-${Date.now()}.mp3`);
-        replyFile.write(response.replyAudioBase64, { encoding: 'base64' });
-        await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
-        player.replace({ uri: replyFile.uri });
-        player.play();
-        setStatus('replying');
-      } else if (activeRef.current) {
-        setStatus('listening');
-        startListening();
-      }
-    } catch (error) {
-      setStatus('error');
-      setLastError(error instanceof Error ? error.message : 'Feltmodus feilet.');
-      if (activeRef.current) {
-        setTimeout(() => startListening(), 1200);
-      }
-    } finally {
-      busyRef.current = false;
-    }
+    } catch (e) { setError(e instanceof Error ? e.message : 'Opptaket kunne ikke sikres.'); }
+    finally { setBusy(false); }
   };
-
-  const level = Math.max(0, Math.min(1, ((recorderState.metering ?? -80) + 80) / 50));
-
-  return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.title}>Feltmodus</Text>
-          <Text style={styles.subtitle}>{FIELD_VOICE_URL}</Text>
-        </View>
-        <Switch
-          value={enabled}
-          onValueChange={setEnabled}
-          trackColor={{ false: '#d1d5db', true: '#fbbf24' }}
-          thumbColor={enabled ? '#f59e0b' : '#f9fafb'}
-          accessibilityLabel={enabled ? 'Stopp feltmodus' : 'Start feltmodus'}
-        />
-      </View>
-
-      <View style={styles.statusPanel}>
-        <View style={[styles.micCircle, enabled && styles.micCircleActive]}>
-          <Ionicons
-            name={status === 'replying' ? 'volume-high-outline' : 'mic-outline'}
-            size={44}
-            color={enabled ? '#fff' : '#9ca3af'}
-          />
-        </View>
-        <Text style={styles.statusText}>
-          {status === 'listening' && 'Lytter'}
-          {status === 'processing' && 'Sender til Edvin'}
-          {status === 'replying' && 'Spiller svar'}
-          {status === 'error' && 'Prover igjen'}
-          {status === 'idle' && 'Av'}
-        </Text>
-        <View style={styles.levelTrack}>
-          <View style={[styles.levelFill, { width: `${level * 100}%` }]} />
-        </View>
-        <Text style={styles.meterText}>
-          {recorderState.metering == null
-            ? 'Venter pa lydniva'
-            : `${Math.round(recorderState.metering)} dB`}
-        </Text>
-        {lastError && <Text style={styles.errorText}>{lastError}</Text>}
-      </View>
-
-      <ScrollView contentContainerStyle={styles.turnList}>
-        {turns.map((turn, index) => (
-          <View key={`${turn.at}-${index}`} style={styles.turnCard}>
-            <Text style={styles.turnTime}>{turn.at}</Text>
-            <Text style={styles.label}>Du sa</Text>
-            <Text style={styles.turnText}>{turn.transcript}</Text>
-            <Text style={styles.label}>Edvin svarte</Text>
-            <Text style={styles.turnText}>{turn.replyText}</Text>
-          </View>
-        ))}
-      </ScrollView>
-    </View>
-  );
+  const recording = isFieldRecordingActive();
+  return <ScrollView contentContainerStyle={styles.container}>
+    <Text style={styles.title}>Besøk i bigården</Text>
+    <Text style={styles.text}>Velg bigård, trykk Start og legg telefonen i lommen. Hele besøket tas opp lokalt. Etter Stopp sendes opptaket til Hermes.</Text>
+    {isError && <Text style={styles.text}>Serveren er utilgjengelig. Lagrede bigårder kan fortsatt brukes.</Text>}
+    <View style={styles.apiaries}>{apiaries.map(a => <TouchableOpacity key={a.id} disabled={recording || busy} style={[styles.choice, selected === a.id && styles.selected]} onPress={() => setSelected(a.id)}><Text>{a.name}</Text></TouchableOpacity>)}</View>
+    <TouchableOpacity accessibilityRole="button" accessibilityLabel={recording ? 'Stopp opptak' : 'Start opptak'} disabled={busy || (!recording && !selected)} style={[styles.record, (busy || (!recording && !selected)) && { opacity: 0.5 }]} onPress={toggle}>
+      <Text style={styles.recordText}>{busy ? 'Vent …' : recording ? '■ Stopp' : '● Start'}</Text>
+    </TouchableOpacity>
+    <Text style={styles.status}>{recording ? `Tar opp · ${Math.floor(audioState.durationMillis / 60000)}:${String(Math.floor(audioState.durationMillis / 1000) % 60).padStart(2, '0')}` : 'Opptak er stoppet'}</Text>
+    {recording && <Text style={styles.text}>Du kan låse skjermen. Ved avbrudd beholdes lyden som er tatt opp.</Text>}
+    {!!error && <Text style={styles.error}>{error}</Text>}
+    <TouchableOpacity disabled={transferring} style={styles.choice} onPress={send}><Text>{transferring ? 'Overfører …' : 'Send ventende opptak / oppdater status'}</Text></TouchableOpacity>
+    <Text style={styles.heading}>Opptak på telefonen</Text>
+    {items.map(item => <View key={item.id} style={styles.card}>
+      <Text style={styles.heading}>{item.apiaryName}</Text><Text>{new Date(item.startedAt).toLocaleString('nb-NO')}</Text>
+      <Text style={styles.text}>{item.state === 'recording' ? 'Tar opp' : item.state === 'saved' ? 'Sikret på telefonen – venter på overføring' : item.state === 'missing' ? 'Lyd kunne ikke gjenopprettes' : labels[item.serverStatus || 'queued']}</Text>
+      {item.interrupted && <Text style={styles.error}>Avbrutt opptak – kontroller innholdet på PC.</Text>}
+      {!!item.error && <Text style={styles.error}>{item.error}</Text>}
+      {item.serverStatus === 'failed' && <TouchableOpacity onPress={() => { void fieldVisitsApi.retry(item.id).then(send).catch(() => Alert.alert('Feil', 'Kunne ikke starte ny behandling.')); }}><Text style={styles.heading}>Prøv Hermes-behandling igjen</Text></TouchableOpacity>}
+    </View>)}
+  </ScrollView>;
 }
-
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f3f4f6',
-  },
-  header: {
-    backgroundColor: '#fff',
-    borderBottomColor: '#e5e7eb',
-    borderBottomWidth: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-  },
-  title: {
-    color: '#111827',
-    fontSize: 22,
-    fontWeight: '700',
-  },
-  subtitle: {
-    color: '#6b7280',
-    fontSize: 12,
-    marginTop: 4,
-    maxWidth: 250,
-  },
-  statusPanel: {
-    alignItems: 'center',
-    padding: 28,
-  },
-  micCircle: {
-    alignItems: 'center',
-    backgroundColor: '#e5e7eb',
-    borderRadius: 52,
-    height: 104,
-    justifyContent: 'center',
-    width: 104,
-  },
-  micCircleActive: {
-    backgroundColor: '#f59e0b',
-  },
-  statusText: {
-    color: '#1f2937',
-    fontSize: 18,
-    fontWeight: '700',
-    marginTop: 14,
-  },
-  levelTrack: {
-    backgroundColor: '#e5e7eb',
-    borderRadius: 4,
-    height: 8,
-    marginTop: 18,
-    overflow: 'hidden',
-    width: '80%',
-  },
-  levelFill: {
-    backgroundColor: '#22c55e',
-    height: '100%',
-  },
-  meterText: {
-    color: '#6b7280',
-    fontSize: 12,
-    marginTop: 8,
-  },
-  errorText: {
-    color: '#b91c1c',
-    fontSize: 13,
-    marginTop: 12,
-    textAlign: 'center',
-  },
-  turnList: {
-    padding: 16,
-    paddingBottom: 32,
-  },
-  turnCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    marginBottom: 12,
-    padding: 14,
-  },
-  turnTime: {
-    color: '#9ca3af',
-    fontSize: 12,
-    marginBottom: 8,
-  },
-  label: {
-    color: '#92400e',
-    fontSize: 12,
-    fontWeight: '700',
-    marginTop: 8,
-    textTransform: 'uppercase',
-  },
-  turnText: {
-    color: '#1f2937',
-    fontSize: 15,
-    lineHeight: 21,
-    marginTop: 4,
-  },
+  container: { padding: 24, gap: 16, backgroundColor: '#fff' }, title: { fontSize: 28, fontWeight: '700' }, text: { fontSize: 16, color: '#4b5563', lineHeight: 24 },
+  apiaries: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, choice: { padding: 14, borderRadius: 12, borderWidth: 1, borderColor: '#d1d5db' }, selected: { backgroundColor: '#fef3c7', borderColor: '#f59e0b' },
+  record: { backgroundColor: '#dc2626', borderRadius: 100, height: 170, width: 170, alignSelf: 'center', justifyContent: 'center', alignItems: 'center' }, recordText: { color: '#fff', fontSize: 30, fontWeight: '700' },
+  status: { textAlign: 'center', fontSize: 20, fontWeight: '600' }, error: { color: '#b91c1c', lineHeight: 22 }, heading: { fontSize: 18, fontWeight: '600' }, card: { padding: 16, borderRadius: 12, backgroundColor: '#f9fafb', gap: 8 },
 });

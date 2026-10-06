@@ -1,3 +1,4 @@
+import { observationQuality } from '../services/inspectionService.js';
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { validateBody, validateQuery, validateParams } from '../middleware/validate.js';
@@ -348,6 +349,7 @@ router.get('/:id', validateParams(idParamSchema), async (req: Request, res: Resp
       inspections: hive.inspections.map(inspection => ({
         id: inspection.id,
         inspectionDate: inspection.inspectionDate,
+        dataQuality: observationQuality(inspection.metadata),
         strength: inspection.strength,
         temperament: inspection.temperament,
         queenSeen: inspection.queenSeen,
@@ -357,7 +359,7 @@ router.get('/:id', validateParams(idParamSchema), async (req: Request, res: Resp
         colonies: (() => {
           try {
             const metadata = JSON.parse(inspection.metadata || '{}');
-            if (Array.isArray(metadata.colonies)) return metadata.colonies;
+            if (Array.isArray(metadata.colonies) && metadata.colonies.length) return metadata.colonies;
           } catch {
             // Fall back to the flat inspection fields below.
           }
@@ -367,7 +369,7 @@ router.get('/:id', validateParams(idParamSchema), async (req: Request, res: Resp
             temperament: inspection.temperament,
             queenSeen: inspection.queenSeen,
             queenLaying: inspection.queenLaying,
-            needsFood: false,
+            needsFood: null,
             healthStatus: inspection.healthStatus,
           }];
         })(),

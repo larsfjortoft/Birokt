@@ -4,22 +4,14 @@ import { validateBody, validateQuery, validateParams } from '../middleware/valid
 import { authenticate } from '../middleware/auth.js';
 import { sendSuccess, sendError, ErrorCodes, calculatePagination } from '../utils/response.js';
 import prisma from '../utils/prisma.js';
+import { createFeeding, createFeedingSchema } from '../services/feedingService.js';
+import { executeIdempotent } from '../services/idempotencyService.js';
 
 const router = Router();
 
 router.use(authenticate);
 
 // Validation schemas
-const createFeedingSchema = z.object({
-  hiveId: z.string().uuid(),
-  feedingDate: z.string(),
-  feedType: z.enum(['sugar_syrup', 'sugar_dough', 'fondant', 'ready_feed', 'pollen_patty', 'pollen_substitute', 'honey', 'other']),
-  amountKg: z.number().positive().max(100),
-  sugarConcentration: z.number().min(0).max(100).optional(),
-  reason: z.enum(['spring_buildup', 'spring_stimulation', 'winter_prep', 'emergency', 'nuc_support', 'stimulation', 'other']).optional(),
-  notes: z.string().trim().optional(),
-});
-
 const updateFeedingSchema = z.object({
   feedType: z.enum(['sugar_syrup', 'sugar_dough', 'fondant', 'ready_feed', 'pollen_patty', 'pollen_substitute', 'honey', 'other']).optional(),
   amountKg: z.number().positive().max(100).optional(),
@@ -146,18 +138,8 @@ router.post('/', validateBody(createFeedingSchema), async (req: Request, res: Re
       return;
     }
 
-    const feeding = await prisma.feeding.create({
-      data: {
-        hiveId,
-        userId,
-        feedingDate: new Date(feedingDate),
-        feedType,
-        amountKg,
-        sugarConcentration,
-        reason,
-        notes,
-      },
-    });
+    const feeding = await executeIdempotent(req, res, 201, () => prisma.$transaction(tx => createFeeding(tx, userId, req.body)));
+    if (!feeding) return;
 
     sendSuccess(res, {
       id: feeding.id,

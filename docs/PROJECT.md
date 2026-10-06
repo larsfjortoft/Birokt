@@ -1,5 +1,11 @@
 # Birøkt — Digital birøktstyring
 
+## Feltbesøk
+
+Start/stopp-opptak av hele besøket på telefonen, varig mottak, behandling med Hermes og samlet PC-gjennomgang er implementert i kildekoden. Se [feltbesøk](FELTBESOK.md) for arbeidsflyt, installasjon og verifiseringsstatus. Nye inspeksjoner bevarer manglende observasjoner som ukjente.
+
+Aktuelt Prisma-skjema bruker SQLite; eldre PostgreSQL-beskrivelser nedenfor må avstemmes mot faktisk installasjon før deploy.
+
 ## Systemoversikt
 
 Komplett system for birøktere til å administrere bigårder, kuber, inspeksjoner,

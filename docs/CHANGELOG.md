@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-10-06 — Samlede feltbesøk og ukjente observasjoner (kildekode)
+
+- Erstattet klippbasert feltmodus med Start/Stopp for hele besøket, bakgrunnsopptak, lokal lydsikring og varig overføringskø.
+- Lagt til servermottak, behandlingskø og Hermes-forslag etter avsluttet opptak. Ingen simultan transkripsjon eller lydsvar i denne flyten.
+- Lagt til Besøk på PC med opptak, original transkripsjon, forslag, manuelle tillegg, godkjenning, avvisning og sporbare rettelser.
+- Utelatte inspeksjonsfelt blir ukjente; nei, null rammer og frisk status krever eksplisitte funn. Eldre originalverdier er bevart med forbehold.
+- Lagt til isolert testkjører med vern mot testing på produksjonsdata og migreringsprøve som bevarer gamle verdier/relasjoner.
+- Produksjonsoppgradering og reell telefonprøve er ikke utført. Se `FELTBESOK.md`.
+
+
 ## 2026-08-24 — Myndighetsjournal og sporbar dokumentasjon
 
 - La til historisk plasserings- og flyttejournal med snapshots, batchflytting, konfliktsjekk og idempotent mobilsynk.

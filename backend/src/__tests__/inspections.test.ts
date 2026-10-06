@@ -55,6 +55,25 @@ describe('Inspections API', () => {
       expect(response.body.success).toBe(true);
     });
 
+    it('distinguishes missing findings from explicit no, zero and checked empty lists after correction', async () => {
+      const response = await testRequest.post('/api/v1/inspections')
+        .set('Authorization', `Bearer ${user.accessToken}`)
+        .send({ hiveId: hive.id, inspectionDate: new Date().toISOString() }).expect(201);
+      const detail = () => testRequest.get(`/api/v1/inspections/${response.body.data.id}`)
+        .set('Authorization', `Bearer ${user.accessToken}`).expect(200);
+      expect((await detail()).body.data).toMatchObject({
+        assessment: { queenSeen: null, queenLaying: null }, frames: { honey: null },
+        health: { status: null, diseases: null, pests: null },
+      });
+      await testRequest.put(`/api/v1/inspections/${response.body.data.id}`)
+        .set('Authorization', `Bearer ${user.accessToken}`)
+        .send({ assessment: { queenSeen: false }, frames: { honey: 0 }, health: { diseases: [] } }).expect(200);
+      expect((await detail()).body.data).toMatchObject({
+        assessment: { queenSeen: false, queenLaying: null }, frames: { honey: 0 },
+        health: { status: null, diseases: [], pests: null },
+      });
+    });
+
     it('should create inspection with two queen sections', async () => {
       const doubleQueenHive = await createTestHive(apiary, {
         hiveNumber: 'DQ-001',

@@ -64,8 +64,8 @@ type HiveType = 'single_queen' | 'double_queen';
 interface QuickColonyFormData {
   colonyNumber: number;
   strength: 'weak' | 'medium' | 'strong';
-  queenSeen: boolean;
-  queenLaying: boolean;
+  queenSeen: boolean | null;
+  queenLaying: boolean | null;
 }
 
 interface QuickFormData {
@@ -89,15 +89,15 @@ const createDefaultColonies = (hiveType?: string): QuickColonyFormData[] => {
   const colonyCount = hiveType === 'double_queen' ? 2 : 1;
   return Array.from({ length: colonyCount }, (_, index) => ({
     colonyNumber: index + 1,
-    strength: 'medium',
-    queenSeen: false,
-    queenLaying: false,
+    strength: '' as 'weak' | 'medium' | 'strong',
+    queenSeen: null,
+    queenLaying: null,
   }));
 };
 
 const createDefaultFormData = (hiveType?: string): QuickFormData => ({
   colonies: createDefaultColonies(hiveType),
-  healthObservations: ['ok'],
+  healthObservations: [],
   broodFrames: '',
   honeyFrames: '',
   notes: '',
@@ -206,17 +206,17 @@ export default function BatchInspectionScreen() {
 
   const saveInspection = useCallback(async (hiveId: string, hiveNumber: string, form: QuickFormData) => {
     const observedIssues = form.healthObservations.filter((item) => item !== 'ok');
-    const healthStatus = observedIssues.length > 0 ? 'warning' : 'healthy';
+    const healthStatus = observedIssues.length > 0 ? 'warning' : form.healthObservations.includes('ok') ? 'healthy' : null;
     const diseases = observedIssues.filter((item) => ['chalkbrood', 'foulbrood', 'other'].includes(item));
     const pests = observedIssues.filter((item) => item === 'varroa');
     const primaryColony = form.colonies[0] ?? createDefaultColonies()[0];
     const colonies = form.colonies.map((colony) => ({
       colonyNumber: colony.colonyNumber,
-      strength: colony.strength,
+      strength: colony.strength || undefined,
       queenSeen: colony.queenSeen,
       queenLaying: colony.queenLaying,
-      needsFood: form.selectedActions.includes('needs_food'),
-      healthStatus: healthStatus as 'healthy' | 'warning' | 'critical',
+      needsFood: form.selectedActions.includes('needs_food') ? true : null,
+      healthStatus: healthStatus as 'healthy' | 'warning' | 'critical' | null,
     }));
 
     setSaving(true);
@@ -226,7 +226,7 @@ export default function BatchInspectionScreen() {
           hiveId,
           inspectionDate: new Date().toISOString(),
           assessment: {
-            strength: primaryColony.strength,
+            strength: primaryColony.strength || undefined,
             queenSeen: primaryColony.queenSeen,
             queenLaying: primaryColony.queenLaying,
           },
@@ -236,8 +236,8 @@ export default function BatchInspectionScreen() {
           },
           health: {
             status: healthStatus,
-            diseases,
-            pests,
+            diseases: healthStatus === null ? null : diseases,
+            pests: healthStatus === null ? null : pests,
           },
           actions: form.selectedActions.length > 0 ? form.selectedActions.map((a) => ({ actionType: a })) : undefined,
           colonies,
@@ -249,18 +249,20 @@ export default function BatchInspectionScreen() {
           inspectionDate: new Date().toISOString(),
           weather: {},
           assessment: {
-            strength: primaryColony.strength,
+            strength: primaryColony.strength || undefined,
             queenSeen: primaryColony.queenSeen,
             queenLaying: primaryColony.queenLaying,
           },
           frames: {
-            brood: form.broodFrames ? parseInt(form.broodFrames) : 0,
-            honey: form.honeyFrames ? parseInt(form.honeyFrames) : 0,
-            pollen: 0,
-            empty: 0,
+            brood: form.broodFrames ? parseInt(form.broodFrames) : null,
+            honey: form.honeyFrames ? parseInt(form.honeyFrames) : null,
+            pollen: null,
+            empty: null,
           },
           health: {
             status: healthStatus,
+            diseases: healthStatus == null ? null : diseases,
+            pests: healthStatus == null ? null : pests,
           },
           actions: form.selectedActions.length > 0 ? form.selectedActions.map((a) => ({ actionType: a })) : undefined,
           notes: form.notes || undefined,
@@ -270,7 +272,7 @@ export default function BatchInspectionScreen() {
 
       setInspected((prev) => [
         ...prev,
-        { id: hiveId, hiveNumber, strength: primaryColony.strength, healthObservations: form.healthObservations, actions: form.selectedActions },
+        { id: hiveId, hiveNumber, strength: primaryColony.strength || undefined, healthObservations: form.healthObservations, actions: form.selectedActions },
       ]);
       return true;
     } catch {
@@ -349,24 +351,24 @@ export default function BatchInspectionScreen() {
           <View style={styles.checkboxRow}>
             <TouchableOpacity
               style={styles.checkbox}
-              onPress={() => updateColony(colony.colonyNumber, 'queenSeen', !colony.queenSeen)}
+              onPress={() => updateColony(colony.colonyNumber, 'queenSeen', colony.queenSeen === null ? true : colony.queenSeen ? false : null)}
               accessibilityRole="checkbox"
               accessibilityLabel={`Bifolk ${colony.colonyNumber} dronning sett`}
-              accessibilityState={{ checked: colony.queenSeen }}
+              accessibilityState={{ checked: colony.queenSeen ?? false }}
             >
               <Ionicons
                 name={colony.queenSeen ? 'checkbox' : 'square-outline'}
                 size={22}
                 color={colony.queenSeen ? '#f59e0b' : '#9ca3af'}
               />
-              <Text style={styles.checkboxLabel}>Dronning sett</Text>
+              <Text style={styles.checkboxLabel}>Dronning sett: {colony.queenSeen == null ? 'Ukjent' : colony.queenSeen ? 'Ja' : 'Nei'}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.checkbox}
-              onPress={() => updateColony(colony.colonyNumber, 'queenLaying', !colony.queenLaying)}
+              onPress={() => updateColony(colony.colonyNumber, 'queenLaying', colony.queenLaying === null ? true : colony.queenLaying ? false : null)}
               accessibilityRole="checkbox"
               accessibilityLabel={`Bifolk ${colony.colonyNumber} legger egg`}
-              accessibilityState={{ checked: colony.queenLaying }}
+              accessibilityState={{ checked: colony.queenLaying ?? false }}
             >
               <Ionicons
                 name={colony.queenLaying ? 'checkbox' : 'square-outline'}

@@ -374,30 +374,30 @@ export interface LocalInspection {
   assessment: {
     strength?: string;
     temperament?: string;
-    queenSeen: boolean;
-    queenLaying: boolean;
+    queenSeen: boolean | null;
+    queenLaying: boolean | null;
   };
   frames: {
-    brood: number;
-    honey: number;
-    pollen: number;
-    empty: number;
+    brood: number | null;
+    honey: number | null;
+    pollen: number | null;
+    empty: number | null;
   };
   health: {
-    status: string;
+    status: string | null;
     varroaLevel?: string;
-    diseases?: string[];
-    pests?: string[];
+    diseases?: string[] | null;
+    pests?: string[] | null;
   };
   actions?: Array<{ actionType: string; details?: Record<string, unknown> }>;
   colonies?: Array<{
     colonyNumber: number;
     strength?: 'weak' | 'medium' | 'strong';
     temperament?: 'calm' | 'nervous' | 'aggressive';
-    queenSeen?: boolean;
-    queenLaying?: boolean;
-    needsFood?: boolean;
-    healthStatus?: 'healthy' | 'warning' | 'critical';
+    queenSeen?: boolean | null;
+    queenLaying?: boolean | null;
+    needsFood?: boolean | null;
+    healthStatus?: 'healthy' | 'warning' | 'critical' | null;
   }>;
   notes?: string;
   syncedAt?: string;
@@ -428,8 +428,8 @@ export async function getInspections(hiveId: string, limit: number = 20): Promis
     weather_condition: string | null;
     strength: string | null;
     temperament: string | null;
-    queen_seen: number;
-    queen_laying: number;
+    queen_seen: number | null;
+    queen_laying: number | null;
     brood_frames: number;
     honey_frames: number;
     pollen_frames: number;
@@ -462,8 +462,8 @@ export async function getInspections(hiveId: string, limit: number = 20): Promis
     assessment: {
       strength: row.strength ?? undefined,
       temperament: row.temperament ?? undefined,
-      queenSeen: row.queen_seen === 1,
-      queenLaying: row.queen_laying === 1,
+      queenSeen: row.queen_seen == null ? null : row.queen_seen === 1,
+      queenLaying: row.queen_laying == null ? null : row.queen_laying === 1,
     },
     frames: {
       brood: row.brood_frames,
@@ -474,8 +474,8 @@ export async function getInspections(hiveId: string, limit: number = 20): Promis
     health: {
       status: row.health_status,
       varroaLevel: row.varroa_level ?? undefined,
-      diseases: JSON.parse(row.diseases || '[]'),
-      pests: JSON.parse(row.pests || '[]'),
+      diseases: row.diseases ? JSON.parse(row.diseases) : null,
+      pests: row.pests ? JSON.parse(row.pests) : null,
     },
     notes: row.notes ?? undefined,
     syncedAt: row.synced_at ?? undefined,
@@ -507,16 +507,16 @@ export async function createInspection(
       inspection.weather.condition ?? null,
       inspection.assessment.strength ?? null,
       inspection.assessment.temperament ?? null,
-      inspection.assessment.queenSeen ? 1 : 0,
-      inspection.assessment.queenLaying ? 1 : 0,
+      inspection.assessment.queenSeen == null ? null : inspection.assessment.queenSeen ? 1 : 0,
+      inspection.assessment.queenLaying == null ? null : inspection.assessment.queenLaying ? 1 : 0,
       inspection.frames.brood,
       inspection.frames.honey,
       inspection.frames.pollen,
       inspection.frames.empty,
       inspection.health.status,
       inspection.health.varroaLevel ?? null,
-      JSON.stringify(inspection.health.diseases ?? []),
-      JSON.stringify(inspection.health.pests ?? []),
+      JSON.stringify(inspection.health.diseases ?? null),
+      JSON.stringify(inspection.health.pests ?? null),
       inspection.notes ?? null,
     ]
   );
@@ -524,8 +524,8 @@ export async function createInspection(
   // Update hive's current frames
   await db.runAsync(
     `UPDATE hives
-     SET current_brood_frames = ?, current_honey_frames = ?,
-         strength = ?, updated_at = datetime('now')
+     SET current_brood_frames = COALESCE(?, current_brood_frames), current_honey_frames = COALESCE(?, current_honey_frames),
+         strength = COALESCE(?, strength), updated_at = datetime('now')
      WHERE id = ?`,
     [
       inspection.frames.brood,
@@ -575,16 +575,16 @@ export async function saveInspections(inspections: LocalInspection[]): Promise<v
         inspection.weather.condition ?? null,
         inspection.assessment.strength ?? null,
         inspection.assessment.temperament ?? null,
-        inspection.assessment.queenSeen ? 1 : 0,
-        inspection.assessment.queenLaying ? 1 : 0,
+        inspection.assessment.queenSeen == null ? null : inspection.assessment.queenSeen ? 1 : 0,
+        inspection.assessment.queenLaying == null ? null : inspection.assessment.queenLaying ? 1 : 0,
         inspection.frames.brood,
         inspection.frames.honey,
         inspection.frames.pollen,
         inspection.frames.empty,
         inspection.health.status,
         inspection.health.varroaLevel ?? null,
-        JSON.stringify(inspection.health.diseases ?? []),
-        JSON.stringify(inspection.health.pests ?? []),
+        JSON.stringify(inspection.health.diseases ?? null),
+        JSON.stringify(inspection.health.pests ?? null),
         inspection.notes ?? null,
         inspection.createdAt,
       ]

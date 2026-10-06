@@ -21,6 +21,7 @@ import medicineAcquisitionRoutes from './medicineAcquisition.routes.js';
 import complianceRoutes from './compliance.routes.js';
 import productionBatchRoutes from './productionBatch.routes.js';
 import documentRoutes from './document.routes.js';
+import visitRoutes from './visit.routes.js';
 
 const router = Router();
 
@@ -46,6 +47,7 @@ router.use('/medicine-acquisitions', medicineAcquisitionRoutes);
 router.use('/compliance-events', complianceRoutes);
 router.use('/production-batches', productionBatchRoutes);
 router.use('/documents', documentRoutes);
+router.use('/visits', visitRoutes);
 
 export { router as v1Routes };
 export default router;

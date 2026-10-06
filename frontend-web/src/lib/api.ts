@@ -160,9 +160,39 @@ class ApiClient {
       body: formData,
     }) as Promise<ApiResponse<T>>;
   }
+
+  async audioBlob(endpoint: string, retry = true): Promise<Blob> {
+    const token = this.getToken();
+    const response = await fetch(`${this.baseUrl}${endpoint}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+    if (response.status === 401 && retry && await this.refreshToken()) return this.audioBlob(endpoint, false);
+    if (!response.ok) throw new Error('Opptaket kunne ikke lastes.');
+    return response.blob();
+  }
 }
 
 export const api = new ApiClient(API_URL);
+
+export interface VisitEntry {
+  id: string; visitId: string; kind: 'inspection' | 'feeding' | 'followup' | 'clarification';
+  hiveId: string | null; sourceText: string; payload: Record<string, any>;
+  state: 'pending' | 'accepted' | 'rejected'; origin: string; version: number; entityId?: string;
+}
+export interface FieldVisit {
+  id: string; apiaryId: string; apiaryName: string; startedAt: string; endedAt: string;
+  interrupted: boolean; status: string; audioReceived: boolean; lastError?: string;
+  transcript?: string; summary?: string; reviewedAt?: string; reviewNotes?: string;
+  version: number; entries?: VisitEntry[];
+}
+export const visitsApi = {
+  list: () => api.get<FieldVisit[]>('/visits'),
+  get: (id: string) => api.get<FieldVisit>(`/visits/${id}`),
+  audio: (id: string) => api.audioBlob(`/visits/${id}/audio`),
+  retry: (id: string) => api.post(`/visits/${id}/retry`),
+  review: (id: string, data: { version: number; reviewed: boolean; notes: string }) => api.put(`/visits/${id}/review`, data),
+  addEntry: (id: string, data: unknown) => api.post(`/visits/${id}/entries`, data),
+  editEntry: (id: string, entryId: string, data: unknown) => api.put(`/visits/${id}/entries/${entryId}`, data),
+  acceptEntry: (id: string, entry: VisitEntry) => api.post(`/visits/${id}/entries/${entry.id}/accept`, { version: entry.version }),
+};
 
 // Auth API
 export const authApi = {
@@ -329,18 +359,18 @@ export const inspectionsApi = {
     hiveId: string;
     inspectionDate: string;
     weather?: { temperature?: number; windSpeed?: number; condition?: string };
-    assessment?: { strength?: string; temperament?: string; queenSeen?: boolean; queenLaying?: boolean };
-    frames?: { brood?: number; honey?: number; pollen?: number; empty?: number };
-    health?: { status?: string; varroaLevel?: string; diseases?: string[]; pests?: string[] };
+    assessment?: { strength?: string; temperament?: string; queenSeen?: boolean | null; queenLaying?: boolean | null };
+    frames?: { brood?: number | null; honey?: number | null; pollen?: number | null; empty?: number | null };
+    health?: { status?: string | null; varroaLevel?: string; diseases?: string[] | null; pests?: string[] | null };
     actions?: Array<{ actionType: string; details?: Record<string, unknown> }>;
     colonies?: Array<{
       colonyNumber: number;
       strength?: 'weak' | 'medium' | 'strong';
       temperament?: 'calm' | 'nervous' | 'aggressive';
-      queenSeen?: boolean;
-      queenLaying?: boolean;
-      needsFood?: boolean;
-      healthStatus?: 'healthy' | 'warning' | 'critical';
+      queenSeen?: boolean | null;
+      queenLaying?: boolean | null;
+      needsFood?: boolean | null;
+      healthStatus?: 'healthy' | 'warning' | 'critical' | null;
     }>;
     notes?: string;
   }) => api.post('/inspections', data),

@@ -83,6 +83,7 @@ const conditionLabels: Record<string, string> = {
 };
 
 interface InspectionDetail {
+  dataQuality?: string;
   id: string;
   hive: { id: string; hiveNumber: string; apiaryName: string };
   user: { id: string; name: string };
@@ -184,6 +185,7 @@ export default function InspectionDetailPage() {
         </div>
       </div>
 
+      {inspection.dataQuality === 'legacy_unverified' && <p className="rounded-lg bg-amber-50 p-3 text-amber-800">Eldre registrering: nei, null og normalstatus kan være automatisk utfylt. Originalverdiene er bevart.</p>}
       {/* Status badges */}
       <div className="flex flex-wrap gap-2">
         {inspection.assessment.strength && (
@@ -192,7 +194,7 @@ export default function InspectionDetailPage() {
           </span>
         )}
         <span className={cn('px-3 py-1 rounded-lg text-sm font-medium', getHealthColor(inspection.health.status))}>
-          {healthLabels[inspection.health.status] || inspection.health.status}
+          {inspection.health.status == null ? 'Ikke undersøkt' : healthLabels[inspection.health.status] || inspection.health.status}
         </span>
         {inspection.assessment.queenSeen && (
           <span className="px-3 py-1 rounded-lg text-sm font-medium text-purple-600 bg-purple-100">
@@ -263,12 +265,12 @@ export default function InspectionDetailPage() {
                     <div>
                       <span className="text-gray-500">Dronning</span>
                       <p className="font-medium">
-                        {colony.queenSeen ? 'Sett' : 'Ikke sett'} · {colony.queenLaying ? 'Legger egg' : 'Legger ikke egg'}
+                        {colony.queenSeen == null ? 'Ukjent' : colony.queenSeen ? 'Sett' : 'Ikke sett'} · {colony.queenLaying == null ? 'Ukjent' : colony.queenLaying ? 'Legger egg' : 'Legger ikke egg'}
                       </p>
                     </div>
                     <div>
                       <span className="text-gray-500">Helsestatus</span>
-                      <p className="font-medium">{healthLabels[colony.healthStatus] || colony.healthStatus}</p>
+                      <p className="font-medium">{colony.healthStatus == null ? 'Ikke undersøkt' : healthLabels[colony.healthStatus] || colony.healthStatus}</p>
                     </div>
                   </div>
                 </div>
@@ -332,7 +334,7 @@ export default function InspectionDetailPage() {
                   <span className="font-medium">{varroaLabels[inspection.health.varroaLevel] || inspection.health.varroaLevel}</span>
                 </div>
               )}
-              {inspection.health.diseases.length > 0 && (
+              {inspection.health.diseases?.length > 0 && (
                 <div>
                   <span className="text-gray-500 text-sm flex items-center gap-1 mb-1">
                     <AlertTriangle className="w-3.5 h-3.5 text-yellow-500" />
@@ -347,7 +349,7 @@ export default function InspectionDetailPage() {
                   </div>
                 </div>
               )}
-              {inspection.health.pests.length > 0 && (
+              {inspection.health.pests?.length > 0 && (
                 <div>
                   <span className="text-gray-500 text-sm flex items-center gap-1 mb-1">
                     <AlertTriangle className="w-3.5 h-3.5 text-yellow-500" />
@@ -362,7 +364,7 @@ export default function InspectionDetailPage() {
                   </div>
                 </div>
               )}
-              {inspection.health.diseases.length === 0 && inspection.health.pests.length === 0 && !inspection.health.varroaLevel && (
+              {inspection.health.diseases?.length === 0 && inspection.health.pests?.length === 0 && !inspection.health.varroaLevel && (
                 <p className="text-sm text-gray-400">Ingen helseproblemer registrert</p>
               )}
             </div>

@@ -10,6 +10,7 @@ import { authenticate } from '../middleware/auth.js';
 import { sendSuccess, sendError, ErrorCodes, calculatePagination } from '../utils/response.js';
 import prisma from '../utils/prisma.js';
 import { auditData } from '../services/complianceService.js';
+import { createInspectionSchema, createInspection, observationQuality, observedList } from '../services/inspectionService.js';
 import { executeIdempotent } from '../services/idempotencyService.js';
 
 const router = Router();
@@ -18,48 +19,6 @@ const router = Router();
 router.use(authenticate);
 
 // Validation schemas
-const createInspectionSchema = z.object({
-  hiveId: z.string().uuid(),
-  inspectionDate: z.string().datetime(),
-  weather: z.object({
-    temperature: z.number().optional(),
-    windSpeed: z.number().optional(),
-    condition: z.string().trim().max(100).optional(),
-  }).optional(),
-  assessment: z.object({
-    strength: z.enum(['weak', 'medium', 'strong']).optional(),
-    temperament: z.enum(['calm', 'nervous', 'aggressive']).optional(),
-    queenSeen: z.boolean().default(false),
-    queenLaying: z.boolean().default(false),
-  }).optional(),
-  frames: z.object({
-    brood: z.number().int().min(0).default(0),
-    honey: z.number().int().min(0).default(0),
-    pollen: z.number().int().min(0).default(0),
-    empty: z.number().int().min(0).default(0),
-  }).optional(),
-  health: z.object({
-    status: z.enum(['healthy', 'warning', 'critical']).default('healthy'),
-    varroaLevel: z.enum(['none', 'low', 'medium', 'high']).optional(),
-    diseases: z.array(z.string()).default([]),
-    pests: z.array(z.string()).default([]),
-  }).optional(),
-  actions: z.array(z.object({
-    actionType: z.string().trim(),
-    details: z.record(z.unknown()).default({}),
-  })).optional(),
-  colonies: z.array(z.object({
-    colonyNumber: z.number().int().min(1).max(2),
-    strength: z.enum(['weak', 'medium', 'strong']).optional(),
-    temperament: z.enum(['calm', 'nervous', 'aggressive']).optional(),
-    queenSeen: z.boolean().default(false),
-    queenLaying: z.boolean().default(false),
-    needsFood: z.boolean().default(false),
-    healthStatus: z.enum(['healthy', 'warning', 'critical']).default('healthy'),
-  })).optional(),
-  notes: z.string().trim().optional(),
-});
-
 const updateInspectionSchema = z.object({
   weather: z.object({
     temperature: z.number().optional(),
@@ -69,17 +28,17 @@ const updateInspectionSchema = z.object({
   assessment: z.object({
     strength: z.enum(['weak', 'medium', 'strong']).optional(),
     temperament: z.enum(['calm', 'nervous', 'aggressive']).optional(),
-    queenSeen: z.boolean().optional(),
-    queenLaying: z.boolean().optional(),
+    queenSeen: z.boolean().nullish(),
+    queenLaying: z.boolean().nullish(),
   }).optional(),
   frames: z.object({
-    brood: z.number().int().min(0).optional(),
-    honey: z.number().int().min(0).optional(),
-    pollen: z.number().int().min(0).optional(),
-    empty: z.number().int().min(0).optional(),
+    brood: z.number().int().min(0).nullish(),
+    honey: z.number().int().min(0).nullish(),
+    pollen: z.number().int().min(0).nullish(),
+    empty: z.number().int().min(0).nullish(),
   }).optional(),
   health: z.object({
-    status: z.enum(['healthy', 'warning', 'critical']).optional(),
+    status: z.enum(['healthy', 'warning', 'critical']).nullish(),
     varroaLevel: z.enum(['none', 'low', 'medium', 'high']).optional(),
     diseases: z.array(z.string()).optional(),
     pests: z.array(z.string()).optional(),
@@ -115,12 +74,12 @@ function getInspectionColonies(inspection: {
   metadata?: string | null;
   strength?: string | null;
   temperament?: string | null;
-  queenSeen: boolean;
-  queenLaying: boolean;
-  healthStatus: string;
+  queenSeen: boolean | null;
+  queenLaying: boolean | null;
+  healthStatus: string | null;
 }) {
   const metadata = parseMetadata(inspection.metadata);
-  if (Array.isArray(metadata.colonies)) {
+  if (Array.isArray(metadata.colonies) && metadata.colonies.length) {
     return metadata.colonies;
   }
 
@@ -130,7 +89,7 @@ function getInspectionColonies(inspection: {
     temperament: inspection.temperament,
     queenSeen: inspection.queenSeen,
     queenLaying: inspection.queenLaying,
-    needsFood: false,
+    needsFood: null,
     healthStatus: inspection.healthStatus,
   }];
 }
@@ -363,8 +322,8 @@ router.get('/', validateQuery(listInspectionsSchema), async (req: Request, res: 
       health: {
         status: inspection.healthStatus,
         varroaLevel: inspection.varroaLevel,
-        diseases: JSON.parse(inspection.diseases),
-        pests: JSON.parse(inspection.pests),
+        diseases: observedList(inspection.diseases, inspection.metadata, 'diseases'),
+        pests: observedList(inspection.pests, inspection.metadata, 'pests'),
       },
       photos: inspection.photos,
       actions: inspection.actions.map(a => ({
@@ -373,6 +332,7 @@ router.get('/', validateQuery(listInspectionsSchema), async (req: Request, res: 
         details: JSON.parse(a.details),
       })),
       colonies: getInspectionColonies(inspection),
+      dataQuality: observationQuality(inspection.metadata),
       notes: inspection.notes,
       createdAt: inspection.createdAt,
     }));
@@ -389,7 +349,6 @@ router.post('/', validateBody(createInspectionSchema), async (req: Request, res:
   try {
     const userId = req.user!.id;
     const { hiveId, inspectionDate, weather, assessment, frames, health, actions, colonies, notes } = req.body;
-    const primaryColony = colonies?.[0];
 
     // Check hive access
     const { hasAccess } = await checkHiveAccess(userId, hiveId);
@@ -399,61 +358,7 @@ router.post('/', validateBody(createInspectionSchema), async (req: Request, res:
     }
 
     // Create inspection with optional actions
-    const inspection = await executeIdempotent(req, res, 201, () => prisma.$transaction(async tx => {
-      const created = await tx.inspection.create({
-      data: {
-        hiveId,
-        userId,
-        inspectionDate: new Date(inspectionDate),
-        temperature: weather?.temperature,
-        windSpeed: weather?.windSpeed,
-        weatherCondition: weather?.condition,
-        strength: primaryColony?.strength || assessment?.strength,
-        temperament: primaryColony?.temperament || assessment?.temperament,
-        queenSeen: primaryColony?.queenSeen ?? assessment?.queenSeen ?? false,
-        queenLaying: primaryColony?.queenLaying ?? assessment?.queenLaying ?? false,
-        broodFrames: frames?.brood || 0,
-        honeyFrames: frames?.honey || 0,
-        pollenFrames: frames?.pollen || 0,
-        emptyFrames: frames?.empty || 0,
-        healthStatus: primaryColony?.healthStatus || health?.status || 'healthy',
-        varroaLevel: health?.varroaLevel,
-        diseases: JSON.stringify(health?.diseases || []),
-        pests: JSON.stringify(health?.pests || []),
-        metadata: JSON.stringify({
-          colonies: colonies || [],
-        }),
-        notes,
-        actions: actions ? {
-          create: actions.map((a: { actionType: string; details: Record<string, unknown> }) => ({
-            actionType: a.actionType,
-            details: JSON.stringify(a.details),
-          })),
-        } : undefined,
-      },
-      include: {
-        hive: {
-          select: {
-            id: true,
-            hiveNumber: true,
-          },
-        },
-        actions: true,
-      },
-    });
-
-    // Update hive with latest stats
-    await tx.hive.update({
-      where: { id: hiveId },
-      data: {
-        strength: primaryColony?.strength || assessment?.strength,
-        currentBroodFrames: frames?.brood,
-        currentHoneyFrames: frames?.honey,
-      },
-    });
-    await tx.auditLog.create({ data: auditData({ userId, entityType: 'Inspection', entityId: created.id, action: 'create', after: created, requestId: res.locals.requestId }) });
-    return created;
-    }));
+    const inspection = await executeIdempotent(req, res, 201, () => prisma.$transaction(tx => createInspection(tx, userId, req.body)));
     if (!inspection) return;
 
     sendSuccess(res, {
@@ -480,8 +385,8 @@ router.post('/', validateBody(createInspectionSchema), async (req: Request, res:
       health: {
         status: inspection.healthStatus,
         varroaLevel: inspection.varroaLevel,
-        diseases: JSON.parse(inspection.diseases),
-        pests: JSON.parse(inspection.pests),
+        diseases: observedList(inspection.diseases, inspection.metadata, 'diseases'),
+        pests: observedList(inspection.pests, inspection.metadata, 'pests'),
       },
       actions: inspection.actions.map(a => ({
         id: a.id,
@@ -489,6 +394,7 @@ router.post('/', validateBody(createInspectionSchema), async (req: Request, res:
         details: JSON.parse(a.details),
       })),
       colonies: getInspectionColonies(inspection),
+      dataQuality: observationQuality(inspection.metadata),
       notes: inspection.notes,
       createdAt: inspection.createdAt,
     }, 201);
@@ -569,8 +475,8 @@ router.get('/:id', validateParams(idParamSchema), async (req: Request, res: Resp
       health: {
         status: inspection.healthStatus,
         varroaLevel: inspection.varroaLevel,
-        diseases: JSON.parse(inspection.diseases),
-        pests: JSON.parse(inspection.pests),
+        diseases: observedList(inspection.diseases, inspection.metadata, 'diseases'),
+        pests: observedList(inspection.pests, inspection.metadata, 'pests'),
       },
       photos: inspection.photos.map(p => ({
         id: p.id,
@@ -584,6 +490,7 @@ router.get('/:id', validateParams(idParamSchema), async (req: Request, res: Resp
         details: JSON.parse(a.details),
       })),
       colonies: getInspectionColonies(inspection),
+      dataQuality: observationQuality(inspection.metadata),
       notes: inspection.notes,
       createdAt: inspection.createdAt,
     });
@@ -616,7 +523,12 @@ router.put('/:id', validateParams(idParamSchema), validateBody(updateInspectionS
       return;
     }
 
-    const inspection = await prisma.inspection.update({
+    const metadata = parseMetadata(existingInspection.metadata);
+    if (health?.diseases !== undefined) metadata.diseasesObserved = true;
+    if (health?.pests !== undefined) metadata.pestsObserved = true;
+    if (Array.isArray(metadata.colonies)) metadata.colonies = metadata.colonies.map((colony: any) => colony.colonyNumber === 1 ? { ...colony, ...assessment, ...(health?.status !== undefined ? { healthStatus: health.status } : {}) } : colony);
+    const inspection = await prisma.$transaction(async tx => {
+      const updated = await tx.inspection.update({
       where: { id },
       data: {
         ...(weather?.temperature !== undefined && { temperature: weather.temperature }),
@@ -630,12 +542,17 @@ router.put('/:id', validateParams(idParamSchema), validateBody(updateInspectionS
         ...(frames?.honey !== undefined && { honeyFrames: frames.honey }),
         ...(frames?.pollen !== undefined && { pollenFrames: frames.pollen }),
         ...(frames?.empty !== undefined && { emptyFrames: frames.empty }),
-        ...(health?.status && { healthStatus: health.status }),
+        ...(health?.status !== undefined && { healthStatus: health.status }),
         ...(health?.varroaLevel !== undefined && { varroaLevel: health.varroaLevel }),
         ...(health?.diseases && { diseases: JSON.stringify(health.diseases) }),
         ...(health?.pests && { pests: JSON.stringify(health.pests) }),
         ...(notes !== undefined && { notes }),
+        metadata: JSON.stringify(metadata),
+        version: { increment: 1 },
       },
+      });
+      await tx.auditLog.create({ data: auditData({ userId, entityType: 'Inspection', entityId: id, action: 'correct', before: existingInspection, after: updated }) });
+      return updated;
     });
 
     sendSuccess(res, {

@@ -1,3 +1,4 @@
+import { observationQuality } from './inspectionService.js';
 import PDFDocument from 'pdfkit';
 import prisma from '../utils/prisma.js';
 
@@ -231,10 +232,11 @@ export async function generateHiveReport(userId: string, hiveId: string, year: n
 
     for (const insp of inspections) {
       if (doc.y > 720) { doc.addPage(); doc.y = 50; }
-      doc.font('Helvetica-Bold').text(`${formatDate(insp.inspectionDate)} - ${insp.healthStatus}`, { underline: true });
+      if (observationQuality(insp.metadata) === 'legacy_unverified') doc.text('Eldre registrering: standardverdier kan være usikre.');
+      doc.font('Helvetica-Bold').text(`${formatDate(insp.inspectionDate)} - ${insp.healthStatus ?? 'Ukjent'}`, { underline: true });
       doc.font('Helvetica');
-      doc.text(`Styrke: ${insp.strength || '-'} | Temperament: ${insp.temperament || '-'} | Dronning sett: ${insp.queenSeen ? 'Ja' : 'Nei'}`);
-      doc.text(`Rammer - Yngel: ${insp.broodFrames}, Honning: ${insp.honeyFrames}, Pollen: ${insp.pollenFrames}, Tomme: ${insp.emptyFrames}`);
+      doc.text(`Styrke: ${insp.strength || '-'} | Temperament: ${insp.temperament || '-'} | Dronning sett: ${insp.queenSeen == null ? 'Ukjent' : insp.queenSeen ? 'Ja' : 'Nei'}`);
+      doc.text(`Rammer - Yngel: ${insp.broodFrames ?? 'Ukjent'}, Honning: ${insp.honeyFrames ?? 'Ukjent'}, Pollen: ${insp.pollenFrames ?? 'Ukjent'}, Tomme: ${insp.emptyFrames ?? 'Ukjent'}`);
       if (insp.notes) doc.text(`Notat: ${insp.notes}`);
       doc.moveDown(0.5);
     }

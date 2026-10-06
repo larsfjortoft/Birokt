@@ -5,7 +5,7 @@ import { getFilename } from './imageUtils';
 // The public environment variable lets preview/production builds override this safely.
 export const API_URL =
   process.env.EXPO_PUBLIC_API_URL ??
-  'http://10.0.0.16:3100/api/v1';
+  'http://openclaw.tail586d8a.ts.net:3100/api/v1';
 
 const REQUEST_TIMEOUT_MS = 12_000;
 
@@ -318,18 +318,18 @@ export const inspectionsApi = {
     hiveId: string;
     inspectionDate: string;
     weather?: { temperature?: number; windSpeed?: number; condition?: string };
-    assessment?: { strength?: string; temperament?: string; queenSeen?: boolean; queenLaying?: boolean };
-    frames?: { brood?: number; honey?: number; pollen?: number; empty?: number };
-    health?: { status?: string; varroaLevel?: string; diseases?: string[]; pests?: string[] };
+    assessment?: { strength?: string; temperament?: string; queenSeen?: boolean | null; queenLaying?: boolean | null };
+    frames?: { brood?: number | null; honey?: number | null; pollen?: number | null; empty?: number | null };
+    health?: { status?: string | null; varroaLevel?: string; diseases?: string[] | null; pests?: string[] | null };
     actions?: Array<{ actionType: string; details?: Record<string, unknown> }>;
     colonies?: Array<{
       colonyNumber: number;
       strength?: 'weak' | 'medium' | 'strong';
       temperament?: 'calm' | 'nervous' | 'aggressive';
-      queenSeen?: boolean;
-      queenLaying?: boolean;
-      needsFood?: boolean;
-      healthStatus?: 'healthy' | 'warning' | 'critical';
+      queenSeen?: boolean | null;
+      queenLaying?: boolean | null;
+      needsFood?: boolean | null;
+      healthStatus?: 'healthy' | 'warning' | 'critical' | null;
     }>;
     notes?: string;
   }) => api.post<{ id: string }>('/inspections', data),

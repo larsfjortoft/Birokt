@@ -18,6 +18,8 @@ const envSchema = z.object({
   JWT_REFRESH_EXPIRY: z.string().default('30d'),
   ALLOW_LOCAL_AGENT_AUTH: booleanFromEnv.default(false),
   CORS_ORIGINS: z.string().optional(),
+  FIELD_VOICE_URL: z.string().url().default('http://127.0.0.1:9100'),
+  VISIT_AUDIO_DIR: z.string().default('data/visits'),
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.string().optional(),
   SMTP_USER: z.string().optional(),

@@ -334,7 +334,7 @@ export default function HiveDetailScreen() {
                   <View style={styles.inspectionBadges}>
                     <View style={[styles.badge, { backgroundColor: healthColors.bg }]}>
                       <Text style={[styles.badgeText, { color: healthColors.text }]}>
-                        {inspection.healthStatus === 'healthy' ? 'Frisk' :
+                        {inspection.healthStatus == null ? 'Ikke undersøkt' : inspection.healthStatus === 'healthy' ? 'Frisk' :
                          inspection.healthStatus === 'warning' ? 'Advarsel' : 'Kritisk'}
                       </Text>
                     </View>

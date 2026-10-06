@@ -14,6 +14,7 @@ datasource db {
 // USERS TABLE
 // =====================================================
 model User {
+  visits FieldVisit[]
   id           String   @id @default(uuid())
   email        String   @unique
   name         String
@@ -75,6 +76,7 @@ model RefreshToken {
 // APIARIES TABLE
 // =====================================================
 model Apiary {
+  visits FieldVisit[]
   id                 String    @id @default(uuid())
   name               String
   description        String?
@@ -102,6 +104,54 @@ model Apiary {
   complianceEvents ComplianceEvent[]
 
   @@map("apiaries")
+}
+
+// Durable source and review state for a complete, user-started field recording.
+model FieldVisit {
+  id String @id
+  userId String @map("user_id")
+  apiaryId String @map("apiary_id")
+  apiaryName String @map("apiary_name")
+  startedAt DateTime @map("started_at")
+  endedAt DateTime @map("ended_at")
+  interrupted Boolean @default(false)
+  status String @default("awaiting_audio")
+  audioPath String? @map("audio_path")
+  audioHash String? @map("audio_hash")
+  audioBytes Int? @map("audio_bytes")
+  transcript String?
+  summary String?
+  lastError String? @map("last_error")
+  processingToken String? @map("processing_token")
+  processingAt DateTime? @map("processing_at")
+  reviewedAt DateTime? @map("reviewed_at")
+  reviewNotes String? @map("review_notes")
+  version Int @default(1)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  apiary Apiary @relation(fields: [apiaryId], references: [id], onDelete: Restrict)
+  entries VisitEntry[]
+  @@index([status, processingAt])
+  @@map("field_visits")
+}
+
+model VisitEntry {
+  id String @id @default(uuid())
+  visitId String @map("visit_id")
+  kind String
+  hiveId String? @map("hive_id")
+  sourceText String @map("source_text")
+  payload String
+  state String @default("pending")
+  origin String @default("hermes")
+  entityId String? @map("entity_id")
+  version Int @default(1)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  visit FieldVisit @relation(fields: [visitId], references: [id], onDelete: Restrict)
+  @@index([visitId])
+  @@map("visit_entries")
 }
 
 // =====================================================
@@ -182,17 +232,17 @@ model Inspection {
   // Colony assessment
   strength    String? // weak, medium, strong
   temperament String? // calm, nervous, aggressive
-  queenSeen   Boolean @default(false) @map("queen_seen")
-  queenLaying Boolean @default(false) @map("queen_laying")
+  queenSeen   Boolean?  @map("queen_seen")
+  queenLaying Boolean?  @map("queen_laying")
 
   // Frame counts
-  broodFrames  Int @default(0) @map("brood_frames")
-  honeyFrames  Int @default(0) @map("honey_frames")
-  pollenFrames Int @default(0) @map("pollen_frames")
-  emptyFrames  Int @default(0) @map("empty_frames")
+  broodFrames  Int?  @map("brood_frames")
+  honeyFrames  Int?  @map("honey_frames")
+  pollenFrames Int?  @map("pollen_frames")
+  emptyFrames  Int?  @map("empty_frames")
 
   // Health assessment
-  healthStatus String  @default("healthy") @map("health_status") // healthy, warning, critical
+  healthStatus String?   @map("health_status") // healthy, warning, critical
   varroaLevel  String? @map("varroa_level") // none, low, medium, high
   diseases     String  @default("[]") // JSON array stored as string
   pests        String  @default("[]") // JSON array stored as string

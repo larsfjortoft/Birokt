@@ -1,5 +1,9 @@
 # Birøkt — Deployment og drift
 
+## Feltbesøk – ny kildekode
+
+Se [feltbesøk](FELTBESOK.md) før oppgradering. Ny SQLite-migrering, regenerert Prisma-klient, aktiv voice-proxy og ny Android-APK må avstemmes. Produksjon er ikke oppgradert som del av kodearbeidet. Ny lydmappe må tas med i backup. Eldre generelle PostgreSQL-/skybeskrivelser nedenfor er ikke verifisert mot Pi-installasjonen.
+
 ## Hvor kjører det
 
 Birøkt er satt opp for deploy til Railway (backend) og Vercel (frontend),

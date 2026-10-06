@@ -84,8 +84,8 @@ interface ColonyFormData {
   colonyNumber: number;
   strength: string;
   temperament: string;
-  queenSeen: boolean;
-  queenLaying: boolean;
+  queenSeen: boolean | null;
+  queenLaying: boolean | null;
 }
 
 interface PhotoPreview {
@@ -104,10 +104,10 @@ export function InspectionForm({ hiveId, hiveNumber, hiveType, apiaryLocation, o
   const colonyCount = hiveType === 'double_queen' ? 2 : 1;
   const initialColonies = Array.from({ length: colonyCount }, (_, index): ColonyFormData => ({
     colonyNumber: index + 1,
-    strength: 'medium',
-    temperament: 'calm',
-    queenSeen: false,
-    queenLaying: true,
+    strength: '',
+    temperament: '',
+    queenSeen: null,
+    queenLaying: null,
   }));
 
   const { data: weatherResponse } = useQuery({
@@ -121,9 +121,10 @@ export function InspectionForm({ hiveId, hiveNumber, hiveType, apiaryLocation, o
     inspectionDate: new Date().toISOString().slice(0, 16),
     temperature: '',
     windSpeed: '',
-    weatherCondition: 'sunny',
+    weatherCondition: '',
     colonies: initialColonies,
     actions: [] as string[],
+    healthChecked: false,
     diseases: [] as string[],
     pests: [] as string[],
     notes: '',
@@ -283,7 +284,7 @@ export function InspectionForm({ hiveId, hiveNumber, hiveType, apiaryLocation, o
 
     const sharedHealthStatus = formData.diseases.length > 0 || formData.pests.length > 0
       ? 'warning'
-      : 'healthy';
+      : formData.healthChecked ? 'healthy' : null;
 
     createMutation.mutate({
       hiveId,
@@ -291,18 +292,18 @@ export function InspectionForm({ hiveId, hiveNumber, hiveType, apiaryLocation, o
       weather: {
         temperature: formData.temperature ? parseFloat(formData.temperature) : undefined,
         windSpeed: formData.windSpeed ? parseFloat(formData.windSpeed) : undefined,
-        condition: formData.weatherCondition,
+        condition: formData.weatherCondition || undefined,
       },
       assessment: {
-        strength: formData.colonies[0]?.strength,
-        temperament: formData.colonies[0]?.temperament,
+        strength: formData.colonies[0]?.strength || undefined,
+        temperament: formData.colonies[0]?.temperament || undefined,
         queenSeen: formData.colonies[0]?.queenSeen,
         queenLaying: formData.colonies[0]?.queenLaying,
       },
       health: {
         status: sharedHealthStatus,
-        diseases: formData.diseases,
-        pests: formData.pests,
+        diseases: sharedHealthStatus === null ? null : formData.diseases,
+        pests: sharedHealthStatus === null ? null : formData.pests,
       },
       actions: formData.actions.map((actionType) => ({
         actionType,
@@ -310,11 +311,11 @@ export function InspectionForm({ hiveId, hiveNumber, hiveType, apiaryLocation, o
       })),
       colonies: formData.colonies.map((colony) => ({
         colonyNumber: colony.colonyNumber,
-        strength: colony.strength as 'weak' | 'medium' | 'strong',
-        temperament: colony.temperament as 'calm' | 'nervous' | 'aggressive',
+        strength: (colony.strength || undefined) as 'weak' | 'medium' | 'strong' | undefined,
+        temperament: (colony.temperament || undefined) as 'calm' | 'nervous' | 'aggressive' | undefined,
         queenSeen: colony.queenSeen,
         queenLaying: colony.queenLaying,
-        needsFood: formData.actions.includes('needs_food'),
+        needsFood: formData.actions.includes('needs_food') ? true : null,
         healthStatus: sharedHealthStatus,
       })),
       notes: formData.notes || undefined,
@@ -323,6 +324,7 @@ export function InspectionForm({ hiveId, hiveNumber, hiveType, apiaryLocation, o
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      <p className="text-sm text-gray-600">Fyll bare inn det du undersøkte. Tomme felt betyr ukjent. Trykk på et valgt alternativ igjen for å fjerne vurderingen.</p>
       {/* Date and Time */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -429,7 +431,7 @@ export function InspectionForm({ hiveId, hiveNumber, hiveType, apiaryLocation, o
                       <button
                         key={option.value}
                         type="button"
-                        onClick={() => handleColonyChange(colony.colonyNumber, 'strength', option.value)}
+                        onClick={() => handleColonyChange(colony.colonyNumber, 'strength', colony.strength === option.value ? '' : option.value)}
                         className={`flex-1 px-3 py-2 rounded-lg border-2 transition-colors ${
                           isSelected ? option.color : 'bg-white border-gray-200 text-gray-600'
                         }`}
@@ -452,7 +454,7 @@ export function InspectionForm({ hiveId, hiveNumber, hiveType, apiaryLocation, o
                       <button
                         key={option.value}
                         type="button"
-                        onClick={() => handleColonyChange(colony.colonyNumber, 'temperament', option.value)}
+                        onClick={() => handleColonyChange(colony.colonyNumber, 'temperament', colony.temperament === option.value ? '' : option.value)}
                         className={`flex-1 px-3 py-2 rounded-lg border transition-colors ${
                           isSelected
                             ? 'bg-honey-100 border-honey-500 text-honey-700'
@@ -468,22 +470,16 @@ export function InspectionForm({ hiveId, hiveNumber, hiveType, apiaryLocation, o
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={colony.queenSeen}
-                    onChange={(e) => handleColonyChange(colony.colonyNumber, 'queenSeen', e.target.checked)}
-                    className="w-5 h-5 rounded border-gray-300 text-honey-500 focus:ring-honey-500"
-                  />
                   <span className="text-sm text-gray-700">Dronning sett</span>
+                  <select value={colony.queenSeen == null ? '' : String(colony.queenSeen)} onChange={e => handleColonyChange(colony.colonyNumber, 'queenSeen', e.target.value === '' ? null : e.target.value === 'true')} className="rounded border p-2">
+                    <option value="">Ukjent</option><option value="true">Ja</option><option value="false">Nei</option>
+                  </select>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={colony.queenLaying}
-                    onChange={(e) => handleColonyChange(colony.colonyNumber, 'queenLaying', e.target.checked)}
-                    className="w-5 h-5 rounded border-gray-300 text-honey-500 focus:ring-honey-500"
-                  />
                   <span className="text-sm text-gray-700">Dronning legger egg</span>
+                  <select value={colony.queenLaying == null ? '' : String(colony.queenLaying)} onChange={e => handleColonyChange(colony.colonyNumber, 'queenLaying', e.target.value === '' ? null : e.target.value === 'true')} className="rounded border p-2">
+                    <option value="">Ukjent</option><option value="true">Ja</option><option value="false">Nei</option>
+                  </select>
                 </label>
               </div>
             </div>
@@ -491,6 +487,7 @@ export function InspectionForm({ hiveId, hiveNumber, hiveType, apiaryLocation, o
         </div>
       </div>
 
+      <label className="flex items-center gap-2"><input type="checkbox" checked={formData.healthChecked} onChange={e => handleChange('healthChecked', e.target.checked)} /> Helse undersøkt – ingen andre funn enn de jeg har valgt</label>
       {/* Actions Section */}
       <div className="bg-gray-50 rounded-lg p-4 space-y-4">
         <h3 className="font-medium text-gray-900 flex items-center gap-2">

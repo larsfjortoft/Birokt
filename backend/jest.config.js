@@ -7,6 +7,7 @@ module.exports = {
   transform: {
     '^.+\\.tsx?$': ['ts-jest', {
       useESM: true,
+      tsconfig: { isolatedModules: true },
     }],
   },
   moduleNameMapper: {

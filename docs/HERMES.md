@@ -47,7 +47,16 @@ Start Hermes pa nytt etter installasjon. Hermes kan bruke skillen som grunnlag f
 egne rutiner, men skal alltid lese `/agent/manifest` for nye eller sammensatte
 oppgaver.
 
-## Feltmodus med stemme
+## Hele feltbesøk (ny kildekode 06.10.2026)
+
+Telefonen tar opp lokalt til Stopp, og laster deretter opp til Birøkt API `POST /api/v1/visits/:id/audio`. Backend bekrefter mottak før den bruker proxyens `POST /visits/process`.
+
+Proxyen transkriberer hele opptaket gjennom Hermes sin skytranskripsjon og bruker Hermes sin konfigurerte modell med `enabled_toolsets=[]` til registreringsforslag. Det generelle Hermes API-et tillater ikke avgrensning av verktøy per forespørsel; besøksflyten bruker derfor Hermes direkte i en avgrenset agentkjøring. Ingen API-/systemskrivinger eller TTS fra denne agentkjøringen. Godkjenning på PC registrerer validerte inspeksjoner, utført fôring og oppfølginger med kildekobling.
+
+Se [feltbesøk](FELTBESOK.md) for installasjon, retry og testing. Proxyen på disk/aktiv tjeneste må oppdateres før denne flyten fungerer i drift.
+
+## Eldre klippmodus (kompatibilitet)
+
 
 Mobilappen kan sende lydklipp til en liten voice-proxy pa Pi:
 
